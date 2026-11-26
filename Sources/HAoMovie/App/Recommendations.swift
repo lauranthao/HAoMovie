@@ -180,9 +180,9 @@ struct RecommendationsView: View {
 
     /// The source's page, opening on the picks already shown here; it refreshes them and swaps in a different answer.
     /// With `category`, it opens on that category instead, as a category row's heading asks (#1267).
-    private func sitePage(_ site: Site, category: TVCore.Category? = nil) -> Route {
+    private func sitePage(_ site: Site, category: Category? = nil) -> Route {
         let config = config
-        var preview: (videos: [Video], categories: [TVCore.Category], hasRecommendations: Bool)?
+        var preview: (videos: [Video], categories: [Category], hasRecommendations: Bool)?
         if model.site?.key == site.key, !model.busy {
             let videos = model.items.compactMap { item -> Video? in if case .detail(let video) = item.destination { video } else { nil } }
             if category != nil { preview = ([], model.categories, !model.items.isEmpty) }
