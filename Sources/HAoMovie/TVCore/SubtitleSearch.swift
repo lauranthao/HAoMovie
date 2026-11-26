@@ -80,11 +80,11 @@ public actor SubtitleSearch {
     /// The search, all at once (for tests and callers that don't show progress).
     public func results(_ hint: SubtitleHint, sources: [SubtitleSearchSource], within seconds: Double? = nil) async -> SubtitleSearchProgress {
         var last = SubtitleSearchProgress()
-        await run(hint, sources: sources, within: seconds) { last = $0 }
+        for await progress in search(hint, sources: sources, within: seconds) { last = progress }
         return last
     }
 
-    private func run(_ hint: SubtitleHint, sources: [SubtitleSearchSource], within limit: Double?, report: (SubtitleSearchProgress) -> Void) async {
+    private func run(_ hint: SubtitleHint, sources: [SubtitleSearchSource], within limit: Double?, report: @Sendable (SubtitleSearchProgress) -> Void) async {
         var policy = self.policy
         if let limit { policy.perSource = limit; policy.total = limit }
         var progress = SubtitleSearchProgress()
