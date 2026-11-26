@@ -104,7 +104,7 @@ import Observation
     /// built-in shows again. One the viewer hides afterwards stays hidden.
     public func restoreBuiltIns(_ sites: [Site], origin: URL) {
         guard !defaults.bool(forKey: Self.builtInRestoreKey), !sites.isEmpty else { return }
-        let restored = Set(sites.filter(\.isBuiltIn).map { key($0, origin: origin) })
+        let restored = Set(sites.filter { $0.isBuiltIn }.map { key($0, origin: origin) })
         if keys.contains(where: restored.contains) {
             keys.removeAll { restored.contains($0) }
             defaults.set(keys, forKey: Self.storageKey)

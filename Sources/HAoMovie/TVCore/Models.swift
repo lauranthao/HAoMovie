@@ -45,6 +45,10 @@ public enum JSONValue: Codable, Equatable, Sendable {
         }
     }
     public var int: Int? { string.flatMap(Int.init) }
+    /// Numeric value, if this is a JSON number (or a numeric string).
+    public var double: Double? {
+        if case .number(let v) = self { v } else { string.flatMap(Double.init) }
+    }
     public var object: [String: JSONValue]? { if case .object(let v) = self { v } else { nil } }
     public var array: [JSONValue]? { if case .array(let v) = self { v } else { nil } }
 }
