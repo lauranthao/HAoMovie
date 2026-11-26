@@ -267,7 +267,7 @@
 		1EAEC5386E75FD9EC72865C5 = {isa = PBXBuildFile; fileRef = BE6B54FDE8E004BB4134C10F; };
 		3F8EB9BCD6A6B099647F436F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayAttempt.swift; sourceTree = "<group>"; };
 		79A050134A3445943A3DC7E5 = {isa = PBXBuildFile; fileRef = 3F8EB9BCD6A6B099647F436F; };
-		52FE9BF30DE8FB9D78567558 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayOn.swift; sourceTree = "<group>"; };
+		52FE9BF30DE8FB9D78567558 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayOnTransport.swift; sourceTree = "<group>"; };
 		526240B5761F471DB029C947 = {isa = PBXBuildFile; fileRef = 52FE9BF30DE8FB9D78567558; };
 		EA07B18A7845AB7D8C05CFCE = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackDropRecovery.swift; sourceTree = "<group>"; };
 		4C237AC5B2E64EF2B210E778 = {isa = PBXBuildFile; fileRef = EA07B18A7845AB7D8C05CFCE; };
@@ -311,13 +311,13 @@
 		ADF01A646E9A5931FB4E6E4B = {isa = PBXBuildFile; fileRef = 021FFBC494F93A5A3CC33DC4; };
 		E0EC4A1B090FD70B2B4306B6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuitContext.swift; sourceTree = "<group>"; };
 		9DC88A4AF6B5380DCB04A1AA = {isa = PBXBuildFile; fileRef = E0EC4A1B090FD70B2B4306B6; };
-		9D1AF357E86D0E1C9A3C9C55 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recommendations.swift; sourceTree = "<group>"; };
+		9D1AF357E86D0E1C9A3C9C55 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationModels.swift; sourceTree = "<group>"; };
 		942D107CB6BEB2B3D1BE6EB0 = {isa = PBXBuildFile; fileRef = 9D1AF357E86D0E1C9A3C9C55; };
 		A4B372E7EA59DB6B6E035508 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseFeed.swift; sourceTree = "<group>"; };
 		0F50AA5102B31EDD702ECF4E = {isa = PBXBuildFile; fileRef = A4B372E7EA59DB6B6E035508; };
 		E9DDE444ACCEABF35EC009D0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Remux.swift; sourceTree = "<group>"; };
 		30D5A54ECE8EF208F274B9BC = {isa = PBXBuildFile; fileRef = E9DDE444ACCEABF35EC009D0; };
-		061721CCDD0BA7E2D227B748 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestoredHelpers.swift; sourceTree = "<group>"; };
+		061721CCDD0BA7E2D227B748 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVCoreTypes.swift; sourceTree = "<group>"; };
 		0B79AE1E1635F87CA4DD1A31 = {isa = PBXBuildFile; fileRef = 061721CCDD0BA7E2D227B748; };
 		C6369B14390A77FE5DECA28D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptAssets.swift; sourceTree = "<group>"; };
 		D06D6CB28E763A0C9F5609A4 = {isa = PBXBuildFile; fileRef = C6369B14390A77FE5DECA28D; };
