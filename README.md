@@ -10,11 +10,12 @@ HAo Movie — 影视应用，基于映匣（Yingxia, [jo32/tvbox-silicon](https:
 
 ## 相对映匣删掉的东西（本版没有）
 
-- 音乐 / 漫画 / 小说模块；云盘（Cloud Files / AList）；JAR / DEX 插件运行时（只支持 TVBox JSON type 1/4 与 M3U，jar 源不支持）。
+- 音乐 / 漫画 / 小说模块；JAR / DEX 插件运行时（只支持 TVBox JSON type 1/4 与 M3U，jar 源不支持）。
+- 云盘与投屏都在：云盘（Cloud Files / AList / 百度 / 115 / 123 / Quark / 天翼 / WebDAV / 飞牛 / 光芽）与投屏（DLNA、PlayOn）保留，云盘账号在设置里登录。
 - TMDB 富化（海报/剧照/演职员/标题 logo 一律用源站自己的图）；Bilibili / 抖音账号登录；Updates（Sparkle）与 Announcements。
 - 弹幕查找服务（Dandanplay 未接，无 AppId）：源站自带弹幕与直播间弹幕仍可显示，弹幕样式设置保留。
 - 播放链：MKV/AVI/FLV/WMV 重打包（remux）、DASH、容器嗅探、过期链接续期、Apple TV 的 HDR→SDR、哔哩哔哩分段章节——这些格式在 AVPlayer 上播不了会直接失败。
-- 订阅文件导入（`ImportedFiles` 不在底座里）；内置直播平台（`LivePlatform.all` 为空）：直播只走用户订阅 / M3U 播放列表。
+- 订阅文件导入（`ImportedFiles`）保留；内置直播平台（`LivePlatform.all` 为空）：直播只走用户订阅 / M3U 播放列表。
 - 压缩的 XMLTV 节目单不支持（会直接报错）。
 
 ## 第一版范围（0.1.0）
