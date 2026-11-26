@@ -1,0 +1,1002 @@
+import SwiftUI
+
+struct LiveView: View {
+    @Environment(Store.self) private var store
+    @State private var query = ""
+    #if !os(tvOS)
+    @State private var editing = false
+    #endif
+    private var trimmed: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
+    var body: some View {
+        Group {
+            if case let sources = store.liveSources, !sources.isEmpty {
+                ScrollView {
+                    Group {
+                        if trimmed.isEmpty {
+                            VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
+                                LiveSourceGrid(sources: sources, grouped: true)
+                                #if os(tvOS)
+                                // No toolbar on Apple TV: the way to hide a platform or bring one back is where the list ends.
+                                RouteLink { LiveSourcesEditor() } label: {
+                                    Label(L10n.text("Hide or Show Live TV"), systemImage: "eye.slash")
+                                }
+                                .buttonStyle(.bordered)
+                                #endif
+                            }
+                        } else {
+                            LiveSearchResults(query: trimmed, sources: sources)
+                        }
+                    }.pageContainer()
+                }
+                .catalogSearchable(text: $query, prompt: L10n.text("Search live rooms and channels"))
+            } else if !store.allLiveSources.isEmpty {
+                // Everything was hidden: say so, rather than asking for a subscription the viewer already has.
+                #if os(tvOS)
+                VStack(spacing: 40) {
+                    EmptyResults(symbol: "eye.slash", title: L10n.text("All Live TV Is Hidden"),
+                                 message: L10n.text("Show platforms and playlists again in Hide or Show Live TV."))
+                    RouteLink { LiveSourcesEditor() } label: { Text(L10n.text("Hide or Show Live TV")) }.buttonStyle(.bordered)
+                }
+                #else
+                EmptyPage(symbol: "eye.slash", title: L10n.text("All Live TV Is Hidden"),
+                          message: L10n.text("Show platforms and playlists again in Hide or Show Live TV."),
+                          action: L10n.text("Hide or Show Live TV"), actionSymbol: "eye", perform: { editing = true })
+                #endif
+            } else {
+                EmptyPage(symbol: AppSection.live.icon, title: L10n.text("Connect a Live Subscription"),
+                          message: L10n.text("In Settings, add a TVBox subscription with live playlists, an M3U or TXT live playlist, or live plugins."),
+                          action: AppSection.settings.title, actionSymbol: AppSection.settings.icon, perform: { store.section = .settings })
+            }
+        }
+        .screenBackdrop()
+        .tabTitle(L10n.text("Live TV"))
+        #if !os(tvOS)
+        .toolbar {
+            // Hiding a platform, bringing one back, and adding or removing a playlist (#601, #837).
+            if !store.allLiveSources.isEmpty {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(L10n.text("Edit")) { editing = true }.accessibilityIdentifier("live.edit")
+                }
+            }
+        }
+        .sheet(isPresented: $editing) { LiveSourcesEditor() }
+        #if DEBUG
+        // `-qaEditLive 1` opens Hide or Show Live TV for screenshots.
+        .task { if UserDefaults.standard.bool(forKey: "qaEditLive") { try? await Task.sleep(for: .seconds(2)); editing = true } }
+        #endif
+        #endif
+    }
+}
+
+/// Live sources as the Live tab and Home show them: the built-in platforms as a row of brand cards
+/// showing a room that is live now, then the subscription's playlists as launcher tiles. Touching and holding
+/// one hides it, or removes a playlist that was added on its own (#601, #837).
+struct LiveSourceGrid: View {
+    @Environment(Store.self) private var store
+    let sources: [LiveSource]
+    /// Section titles; Home's Live TV section has its own header and leaves them out.
+    var titled = true
+    /// The playlists in one section per subscription (#815), as the Live tab shows them.
+    var grouped = false
+    @State private var removing: (source: LiveSource, entry: SubscriptionEntry)?
+    var body: some View {
+        let platforms = sources.compactMap(\.platform)
+        let playlists = sources.filter { !$0.isBuiltIn }
+        let groups = grouped ? store.livePlaylistGroups(playlists) : []
+        VStack(alignment: .leading, spacing: titled ? Layout.sectionSpacing : Layout.cardSpacing) {
+            if !platforms.isEmpty {
+                VStack(alignment: .leading, spacing: Layout.headerSpacing) {
+                    if titled { SectionHeader(title: L10n.text("Live Platforms")) }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: Layout.tileMin), spacing: Layout.cardSpacing)], spacing: Layout.cardSpacing) {
+                        ForEach(platforms) { platform in
+                            RouteLink { LivePlatformView(platform: platform) } label: { LivePlatformCard(platform: platform) }.tileButton()
+                                .contextMenu { hideButton(platform.source) }
+                        }
+                    }
+                }.tvFocusSection()
+            }
+            // One subscription's playlists keep the one heading they always had.
+            if groups.count > 1 {
+                ForEach(groups) { group in playlistSection(group.title ?? L10n.text("Live Playlists"), group.sources) }
+            } else if !playlists.isEmpty {
+                playlistSection(L10n.text("Live Playlists"), groups.first?.sources ?? playlists)
+            }
+        }
+        .confirmationDialog(removing.map { L10n.text("Remove the playlist %@?", $0.entry.title) } ?? "",
+                            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
+            Button(L10n.text("Remove Playlist"), role: .destructive) { if let removing { store.removeSubscription(removing.entry) } }
+            Button(L10n.text("Cancel"), role: .cancel) {}
+        } message: {
+            Text(L10n.text("It was added as a subscription of its own, so the subscription is removed too."))
+        }
+    }
+
+    private func playlistSection(_ title: String, _ playlists: [LiveSource]) -> some View {
+        VStack(alignment: .leading, spacing: Layout.headerSpacing) {
+            if titled { SectionHeader(title: title) }
+            LazyVGrid(columns: Layout.cardColumns, spacing: Layout.cardSpacing) {
+                ForEach(playlists) { source in
+                    RouteLink { ChannelListView(source: source) } label: { LiveSourceCard(source: source) }.tileButton()
+                        .contextMenu {
+                            hideButton(source)
+                            if let entry = store.playlistSubscription(source) {
+                                Button(role: .destructive) { removing = (source, entry) } label: {
+                                    Label(L10n.text("Remove Playlist"), systemImage: "trash")
+                                }
+                            }
+                        }
+                }
+            }
+        }.tvFocusSection()
+    }
+
+    private func hideButton(_ source: LiveSource) -> some View {
+        Button { withAnimation(.smooth) { store.hiddenLiveSources.setHidden([source], hidden: true) } } label: {
+            Label(L10n.text("Hide"), systemImage: "eye.slash")
+        }
+    }
+}
+
+/// A live playlist as a launcher tile, like a source card: a monogram icon, its name, and the note
+/// its name carries in brackets ("需开启V6网络") as a quiet second line. Use with `tileButton()`.
+struct LiveSourceCard: View {
+    @Environment(\.isFocused) private var isFocused
+    let source: LiveSource
+    #if os(tvOS)
+    private var focused: Bool { isFocused }
+    private let icon: CGFloat = 88, padding: CGFloat = 20, radius: CGFloat = 28
+    #else
+    private let focused = false
+    private let icon: CGFloat = 48, padding: CGFloat = 12, radius: CGFloat = 16
+    #endif
+    var body: some View {
+        let name = Self.split(source.name)
+        let label = SourceLabel(name.title)
+        let detail = (label.parts.dropFirst() + [name.note].compactMap { $0 }).joined(separator: " · ")
+        HStack(spacing: padding) {
+            MonogramIcon(seed: source.name, label: label, size: icon)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label.parts[0]).font(.headline).lineLimit(1)
+                    .foregroundStyle(focused ? Color.black : Color.primary)
+                if !detail.isEmpty {
+                    Text(detail).font(.subheadline).lineLimit(1)
+                        .foregroundStyle(focused ? Color.black.opacity(0.6) : Color.secondary)
+                }
+            }
+            Spacer(minLength: 0)
+            #if !os(tvOS)
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+            #endif
+        }
+        .padding(padding).frame(maxWidth: .infinity, alignment: .leading)
+        .background { TileSurface(focused: focused, radius: radius) }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// "范明明（需开启V6网络）" → ("范明明", "需开启V6网络").
+    static func split(_ name: String) -> (title: String, note: String?) {
+        let text = name.trimmingCharacters(in: .whitespaces)
+        guard let last = text.last, "）)".contains(last),
+              let open = text.lastIndex(where: { "（(".contains($0) }), open > text.startIndex else { return (text, nil) }
+        let note = text[text.index(after: open)..<text.index(before: text.endIndex)].trimmingCharacters(in: .whitespaces)
+        return (text[..<open].trimmingCharacters(in: .whitespaces), note.isEmpty ? nil : note)
+    }
+}
+
+struct ChannelListView: View {
+    let source: LiveSource
+    @Environment(Store.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    @State private var channels: [Channel] = []
+    @State private var query = ""
+    @State private var group: String?
+    @State private var loading = false
+    @State private var loaded = false
+    @State private var error: String?
+    /// The guide the playlist's header names, and the guide in use (#802).
+    @State private var playlistGuide: String?
+    @State private var guide: LiveGuide?
+    @State private var editingGuide = false
+    private var waiting: Bool { channels.isEmpty && error == nil && (loading || !loaded) }
+    private var groups: [String] { Array(Set(channels.map(\.group))).sorted() }
+    private var filtered: [Channel] {
+        channels.filter { (group == nil || $0.group == group) && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query)) }
+    }
+    var body: some View {
+        #if os(tvOS)
+        TVChannelGuide(source: source, channels: channels, query: $query, group: $group,
+                       loading: waiting, refreshing: loading, error: error,
+                       reload: { Task { await load() } }, editGuide: { editingGuide = true })
+            .environment(guide)
+            .modifier(GuideAddressAlert(isPresented: $editingGuide, source: source, automatic: source.guide ?? playlistGuide, saved: applyGuide))
+            .task(id: source.id) { if !loaded { await load() } }
+        #else
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 18) {
+                #if os(tvOS)
+                HStack {
+                    Spacer()
+                    Button { Task { await load() } } label: { Label(L10n.text("Refresh"), systemImage: "arrow.clockwise") }
+                        .controlButton().disabled(loading)
+                }
+                #endif
+                if !channels.isEmpty { filterBar } else if waiting { ChipSkeletonRow() }
+                if waiting {
+                    LoadingCard { .server(source.url.host(), title: L10n.text("Loading channels…")) }
+                    ChannelSkeletonGrid()
+                }
+                if let error {
+                    ErrorState(
+                        title: L10n.text("Unable to Load Channels"),
+                        message: L10n.text("Try again, or choose another source to keep watching."),
+                        details: error,
+                        retry: { Task { await load() } },
+                        goBack: { dismiss() },
+                        busy: loading
+                    ).padding(.vertical, 24).tvFocusSection()
+                }
+                if !waiting && error == nil && filtered.isEmpty {
+                    EmptyResults(symbol: "magnifyingglass", title: L10n.text("No Matching Channels"))
+                }
+                if !filtered.isEmpty {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: Layout.cardMin), spacing: 12)], spacing: 12) {
+                        ForEach(filtered) { ChannelCard(channel: $0, play: watch) }
+                    }
+                }
+            }.pageContainer()
+        }
+        .screenBackdrop()
+        .catalogSearchable(text: $query, prompt: L10n.text("Search channels")).screenTitle(source.name)
+        .toolbar {
+            Button { editingGuide = true } label: { Image(systemName: "calendar") }.accessibilityLabel(L10n.text("Program Guide"))
+            Button { Task { await load() } } label: { Image(systemName: "arrow.clockwise") }.disabled(loading).accessibilityLabel(L10n.text("Refresh"))
+        }
+        .environment(guide)
+        .modifier(GuideAddressAlert(isPresented: $editingGuide, source: source, automatic: source.guide ?? playlistGuide, saved: applyGuide))
+        .task(id: source.id) { if !loaded { await load() } }
+        #endif
+    }
+    private var filterBar: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ChipRow {
+                GlassGroup(spacing: 8) {
+                    HStack(spacing: 8) {
+                        Chip(title: L10n.text("All"), selected: group == nil) { group = nil }
+                        ForEach(groups, id: \.self) { value in
+                            Chip(title: value.isEmpty ? L10n.text("Ungrouped") : value, selected: group == value) { group = value }
+                        }
+                    }
+                }.padding(.vertical, 4)
+            }
+            Text(L10n.text("Channels: %lld", filtered.count)).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+    /// Plays a channel with the whole playlist to switch through in the player (#1010), and its guide (#802).
+    private func watch(_ channel: Channel) { store.watch(channel, in: LiveLineup(title: source.name, channels: channels), guide: guide) }
+
+    /// Uses the guide the viewer typed in, the subscription names or the playlist names, and loads it if it's XMLTV.
+    private func applyGuide() {
+        let address = LiveGuide.address(for: source, playlist: playlistGuide, in: store)
+        if address != guide?.address { guide = address.map(LiveGuide.init) }
+        if let guide, !channels.isEmpty, case .xmltv = guide.address {
+            let channels = channels
+            Task { await guide.load(channels) }
+        }
+    }
+
+    private func load() async {
+        guard !loading else { return }
+        loading = true; error = nil
+        defer { loading = false; if !Task.isCancelled { loaded = true } }
+        do {
+            let playlist = try await HTTPClient().playlist(source)
+            channels = playlist.channels; playlistGuide = playlist.guide
+            if let group, !groups.contains(group) { self.group = nil }
+            applyGuide()
+        }
+        catch is CancellationError { }
+        catch {
+            guard !Task.isCancelled else { return }
+            // A loopback playlist says which kind it is (`LoopbackPlaylist.label`), never its address.
+            let route = LoopbackPlaylist.label(source.url).map { " " + $0 } ?? ""
+            Diagnostics.shared.failure("live", "playlist host=\(source.url.host() ?? "-")\(route)", error)
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+#if os(tvOS)
+/// A living-room channel guide, with what's on now and next when the playlist has a program guide (#802).
+private struct TVChannelGuide: View {
+    let source: LiveSource
+    let channels: [Channel]
+    @Binding var query: String
+    @Binding var group: String?
+    let loading: Bool
+    let refreshing: Bool
+    let error: String?
+    let reload: () -> Void
+    let editGuide: () -> Void
+    @Environment(Store.self) private var store
+    @Environment(LiveGuide.self) private var guide: LiveGuide?
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var focusedChannel: String?
+    @FocusState private var searchFocused: Bool
+    @State private var lastFocusedChannel: String?
+    @State private var showingSearch = false
+    private var groups: [String] { Array(Set(channels.map(\.group))).sorted() }
+    private var filtered: [Channel] {
+        channels.filter { (group == nil || $0.group == group) && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query)) }
+    }
+    private var highlighted: Channel? { filtered.first { $0.id == (focusedChannel ?? lastFocusedChannel) } ?? filtered.first }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 26) {
+            HStack(spacing: 18) {
+                Text(source.name).font(.system(size: 28, weight: .semibold)).lineLimit(1)
+                Spacer()
+                Button { showingSearch = true } label: {
+                    Label(query.isEmpty ? L10n.text("Search channels") : query, systemImage: "magnifyingglass")
+                        .lineLimit(1)
+                }.controlButton().focused($searchFocused)
+                if !query.isEmpty {
+                    Button { query = "" } label: { Image(systemName: "xmark") }
+                        .controlButton().accessibilityLabel(L10n.text("Clear search"))
+                }
+                Button(action: editGuide) { Image(systemName: "calendar") }
+                    .controlButton().accessibilityLabel(L10n.text("Program Guide"))
+                Button(action: reload) { Image(systemName: "arrow.clockwise") }
+                    .controlButton().disabled(refreshing).accessibilityLabel(L10n.text("Refresh"))
+            }
+            .tvFocusSection()
+            // Up from below comes back to Search, where Down left, rather than the end of the bar.
+            .defaultFocus($searchFocused, true, priority: .userInitiated)
+
+            if let channel = highlighted {
+                HStack(alignment: .center, spacing: 48) {
+                    VStack(alignment: .leading, spacing: 18) {
+                        Label(L10n.text("Live TV"), systemImage: "dot.radiowaves.left.and.right")
+                            .font(.system(size: 21, weight: .semibold)).foregroundStyle(.secondary)
+                        Text(channel.name).font(.system(size: 52, weight: .bold)).lineLimit(2)
+                        HStack(spacing: 18) {
+                            Text(channel.displayGroup)
+                            if store.isFavorite(channel) { Image(systemName: "heart.fill") }
+                        }.font(.system(size: 24)).foregroundStyle(.secondary)
+                        NowAndNext(channel: channel).font(.system(size: 24))
+                        ProgrammeCatchupButton(channel: channel, play: watch).controlButton()
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                    TVGuideLogo(channel: channel, size: 112)
+                        .frame(width: 350, height: 198)
+                        .background(TVStyle.surface, in: RoundedRectangle(cornerRadius: 10))
+                }
+                .frame(minHeight: 218)
+                // The full width is one section, so Down from anywhere in the top bar reaches Replay Programs (at the
+                // left, it was out of line with the search button) before the groups, and Up from the groups returns.
+                .tvFocusSection()
+            }
+
+            if !channels.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        category(L10n.text("All"), value: nil)
+                        ForEach(groups, id: \.self) { value in
+                            category(value.isEmpty ? L10n.text("Ungrouped") : value, value: value)
+                        }
+                    }.padding(4)
+                }.scrollClipDisabled().tvFocusSection()
+            }
+
+            if loading {
+                LoadingCard(maxWidth: LoadingCard.compact) { .server(source.url.host(), title: L10n.text("Loading channels…")) }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error {
+                ErrorState(title: L10n.text("Unable to Load Channels"),
+                               message: L10n.text("Try again, or choose another source to keep watching."),
+                               details: error, retry: reload, goBack: { dismiss() }, busy: refreshing)
+                Spacer()
+            } else if filtered.isEmpty {
+                EmptyResults(symbol: "magnifyingglass", title: L10n.text("No Matching Channels"), fills: true)
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text(L10n.text("Channels: %lld", filtered.count))
+                        Spacer()
+                        Text(L10n.text("Live TV"))
+                    }.font(.system(size: 20)).foregroundStyle(.secondary)
+                    ScrollView {
+                        LazyVStack(spacing: 8) {
+                            ForEach(filtered) { channel in
+                                channelRow(channel)
+                                    .focused($focusedChannel, equals: channel.id)
+                            }
+                        }.padding(4)
+                    }.scrollClipDisabled().tvFocusSection()
+                }
+            }
+        }
+        .padding(.horizontal, Layout.gutter).padding(.top, 24).padding(.bottom, 24)
+        .screenBackdrop()
+        .toolbar(.hidden, for: .navigationBar)
+        .onChange(of: focusedChannel) { _, channel in if let channel { lastFocusedChannel = channel } }
+        .fullScreenCover(isPresented: $showingSearch) {
+            NavigationStack {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(filtered) { channel in
+                            Button {
+                                showingSearch = false
+                                watch(channel)
+                            } label: {
+                                HStack(spacing: 24) {
+                                    TVGuideLogo(channel: channel, size: 54)
+                                    Text(channel.name)
+                                    Spacer()
+                                    Image(systemName: "play.fill")
+                                }.padding(20)
+                            }.buttonStyle(TVGuideRowStyle())
+                        }
+                        if filtered.isEmpty { Text(L10n.text("No Matching Channels")) }
+                    }.padding(48)
+                }
+                .searchable(text: $query, prompt: Text(L10n.text("Search channels")))
+                .screenBackdrop()
+            }.onExitCommand { showingSearch = false }
+        }
+    }
+
+    private func category(_ title: String, value: String?) -> some View {
+        Button { group = value; focusedChannel = nil; lastFocusedChannel = nil } label: { Text(title) }
+            .buttonStyle(TVGuideCategoryStyle(selected: group == value))
+            .accessibilityAddTraits(group == value ? [.isSelected] : [])
+    }
+
+    /// Plays a channel with the whole playlist to switch through in the player (#1010).
+    private func watch(_ channel: Channel) { store.watch(channel, in: LiveLineup(title: source.name, channels: channels), guide: guide) }
+
+    private func channelRow(_ channel: Channel) -> some View {
+        Button { watch(channel) } label: {
+            HStack(spacing: 26) {
+                TVGuideLogo(channel: channel, size: 52).frame(width: 100)
+                Rectangle().fill(.primary.opacity(0.12)).frame(width: 1, height: 48)
+                Text(channel.name).font(.system(size: 28, weight: .semibold)).lineLimit(1)
+                Spacer(minLength: 20)
+                NowOnText(channel: channel, otherwise: channel.displayGroup).font(.system(size: 22)).opacity(0.65).lineLimit(1)
+                if store.isFavorite(channel) { Image(systemName: "heart.fill").font(.system(size: 20)) }
+                Image(systemName: "play.fill").font(.system(size: 20)).frame(width: 44)
+            }.padding(.horizontal, 22).frame(height: 90)
+        }
+        .buttonStyle(TVGuideRowStyle())
+        .contextMenu {
+            Button { store.toggleFavorite(channel) } label: {
+                Label(store.isFavorite(channel) ? L10n.text("Remove %@ from favorites", channel.name) : L10n.text("Add %@ to favorites", channel.name),
+                      systemImage: store.isFavorite(channel) ? "heart.slash" : "heart")
+            }
+        }
+        .accessibilityLabel("\(channel.name), \(channel.displayGroup), \(L10n.text("Play"))")
+    }
+}
+
+private struct TVGuideLogo: View {
+    let channel: Channel
+    let size: CGFloat
+    var body: some View {
+        ZStack {
+            Text(String(channel.name.prefix(1))).font(.system(size: size * 0.55, weight: .bold))
+                .foregroundStyle(Color.white)
+            if let url = channel.logo {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFit().padding(5).background(TVStyle.raised)
+                    }
+                }
+            }
+        }.frame(width: size, height: size)
+            .background(TVStyle.raised, in: RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct TVGuideRowStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { Row(configuration: configuration) }
+    private struct Row: View {
+        let configuration: ButtonStyleConfiguration
+        @Environment(\.isFocused) private var focused
+        var body: some View {
+            configuration.label
+                .foregroundStyle(focused ? Color.black : Color.white)
+                .background(focused ? Color.white : TVStyle.surface, in: RoundedRectangle(cornerRadius: 8))
+                .scaleEffect(configuration.isPressed ? 0.99 : 1)
+                .animation(.easeOut(duration: 0.12), value: focused)
+        }
+    }
+}
+
+private struct TVGuideCategoryStyle: ButtonStyle {
+    let selected: Bool
+    func makeBody(configuration: Configuration) -> some View { Category(configuration: configuration, selected: selected) }
+    private struct Category: View {
+        let configuration: ButtonStyleConfiguration
+        let selected: Bool
+        @Environment(\.isFocused) private var focused
+        var body: some View {
+            configuration.label.font(.system(size: 23, weight: .semibold))
+                .padding(.horizontal, 24).padding(.vertical, 13)
+                .foregroundStyle(selected ? Brand.onAccent : Color.white)
+                .background(selected ? Brand.accent : TVStyle.raised, in: Capsule())
+                .overlay { Capsule().strokeBorder(focused ? Color.white : .clear, lineWidth: 3).padding(-5) }
+                .scaleEffect(configuration.isPressed ? 0.97 : 1)
+        }
+    }
+}
+#endif
+
+struct FavoritesView: View {
+    @Environment(Store.self) private var store
+    /// The kind the chips show alone, e.g. only live channels (#480); empty shows every kind.
+    @AppStorage("favoritesFilter") private var filterKind = ""
+    /// The chosen kind while there are favorites of it; else everything, so the page is never empty.
+    private var filter: FavoriteKind? {
+        FavoriteKind(rawValue: filterKind).flatMap { store.favorites.kinds.contains($0) ? $0 : nil }
+    }
+    private func shows(_ kind: FavoriteKind) -> Bool {
+        (filter == nil || filter == kind) && !store.favorites.items(kind).isEmpty
+    }
+    var body: some View {
+        Group {
+            if store.favorites.items.isEmpty {
+                EmptyPage(symbol: AppSection.favorites.icon, title: L10n.text("No Favorites Yet"),
+                          message: L10n.text("Save a live channel, a video, or an episode with the heart."),
+                          action: AppSection.live.title, actionSymbol: AppSection.live.icon, perform: { store.section = .live })
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
+                        if let error = store.favorites.persistenceError {
+                            StatusNotice(text: L10n.text("Unable to save favorites: %@", error))
+                        }
+                        if store.favorites.kinds.count > 1 { filterBar }
+                        if shows(.live) { liveSection }
+                        if shows(.video) { filmSection }
+                        if shows(.episode) { episodeSection }
+                    }
+                    .pageContainer()
+                }
+            }
+        }
+        .screenBackdrop()
+        .tabTitle(L10n.text("Favorites"))
+    }
+
+    /// One chip per kind that has favorites, with the sections' own names.
+    private var filterBar: some View {
+        ChipRow {
+            GlassGroup(spacing: 8) {
+                HStack(spacing: 8) {
+                    Chip(title: L10n.text("All"), selected: filter == nil) { filterKind = "" }
+                    ForEach(store.favorites.kinds, id: \.self) { kind in
+                        Chip(title: title(kind), selected: filter == kind) { filterKind = kind.rawValue }
+                            .accessibilityIdentifier("favorites.filter.\(kind.rawValue)")
+                    }
+                }
+            }.padding(.vertical, 4)
+        }
+        .tvFocusSection()
+    }
+
+    private func title(_ kind: FavoriteKind) -> String {
+        switch kind {
+        case .live: L10n.text("Live TV")
+        case .video: L10n.text("Films")
+        case .episode: L10n.text("Saved Episodes")
+        // FavoriteKind still declares .music/.cloud (TVCore/Favorites.swift), but no favorite can be one any more.
+        default: L10n.text("Favorites")
+        }
+    }
+
+    private var liveSection: some View {
+        VStack(alignment: .leading, spacing: Layout.headerSpacing) {
+            SectionHeader(title: L10n.text("Live TV"))
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: Layout.cardMin), spacing: 12)], spacing: 12) {
+                ForEach(store.favorites.liveChannels) { channel in
+                    // The other favorite channels are the ones to switch through in the player (#1010).
+                    ChannelCard(channel: channel) { store.watchFavorite($0) }
+                }
+            }
+        }
+        .tvFocusSection()
+    }
+
+    private var filmSection: some View {
+        VStack(alignment: .leading, spacing: Layout.headerSpacing) {
+            SectionHeader(title: L10n.text("Films"))
+            LazyVGrid(columns: Layout.posterColumns, spacing: Layout.gridRowSpacing) {
+                ForEach(store.favorites.items(.video)) { item in
+                    if case .video(let video) = item { FavoriteFilmCard(video: video) }
+                }
+            }
+        }
+        .tvFocusSection()
+    }
+
+    private var episodeSection: some View {
+        VStack(alignment: .leading, spacing: Layout.headerSpacing) {
+            SectionHeader(title: L10n.text("Saved Episodes"))
+            LazyVGrid(columns: Layout.posterColumns, spacing: Layout.gridRowSpacing) {
+                ForEach(store.favorites.items(.episode)) { item in
+                    if case .episode(let episode) = item { FavoriteEpisodeCard(episode: episode) }
+                }
+            }
+        }
+        .tvFocusSection()
+    }
+}
+
+/// Opens a saved film on its detail page, or reports that the source is gone.
+struct FavoriteVideoOpener<Label: View>: View {
+    @Environment(Store.self) private var store
+    @Environment(\.stripDrag) private var drag
+    private let video: FavoriteVideo
+    private let label: Label
+
+    init(video: FavoriteVideo, @ViewBuilder label: () -> Label) {
+        self.video = video
+        self.label = label()
+    }
+
+    var body: some View {
+        if let listing = video.listingVideo(), let client = store.catalogClient(for: video) {
+            RouteLink { VideoDetailView(video: listing, client: client) } label: { label }
+                .buttonStyle(IgnoreStripDragCardStyle(drag: drag))
+        } else {
+            Button {
+                if drag?.active != true { store.reportMissingFavoriteSource() }
+            } label: { label }
+            .cardButton()
+        }
+    }
+}
+
+/// NavigationLink activates on mouse-up; ignore that click while the home strip is dragging.
+private struct IgnoreStripDragCardStyle: PrimitiveButtonStyle {
+    var drag: StripDrag?
+    func makeBody(configuration: Configuration) -> some View {
+        Button {
+            if drag?.active != true { configuration.trigger() }
+        } label: {
+            configuration.label
+        }
+        .cardButton()
+    }
+}
+
+/// A saved film. The heart is a sibling of the poster button, so it does not open the title.
+private struct FavoriteFilmCard: View {
+    let video: FavoriteVideo
+    @State private var hovering = false
+    private var heartRevealed: Bool {
+        #if os(macOS)
+        hovering
+        #else
+        true
+        #endif
+    }
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            FavoriteVideoOpener(video: video) {
+                if let listing = video.listingVideo() {
+                    PosterCard(video: listing)
+                } else {
+                    Text(video.videoName).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1)
+                }
+            }
+            .favoriteMenu(.video(video), name: video.videoName)
+            #if !os(tvOS)
+            FavoriteHeartButton(item: .video(video), name: video.videoName, onArtwork: true, revealed: heartRevealed)
+                .fixedSize()
+                .padding(8)
+            #endif
+        }
+        #if os(macOS)
+        .onHover { hovering = $0 }
+        .animation(.smooth(duration: 0.15), value: hovering)
+        #endif
+    }
+}
+
+/// A saved episode. Playing it does not remove the film favorite, and the heart removes only this episode.
+private struct FavoriteEpisodeCard: View {
+    @Environment(Store.self) private var store
+    let episode: FavoriteEpisode
+    @State private var hovering = false
+    private var heartRevealed: Bool {
+        #if os(macOS)
+        hovering
+        #else
+        true
+        #endif
+    }
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Button { store.play(episode) } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    if let listing = episode.video.listingVideo() {
+                        PosterCard(video: listing)
+                    } else {
+                        Text(episode.video.videoName).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1)
+                    }
+                    Text(episode.episodeName).font(.caption).foregroundStyle(.secondary).lineLimit(1).cardCaption()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .cardButton()
+            .favoriteMenu(.episode(episode), name: episode.video.videoName)
+            #if !os(tvOS)
+            FavoriteHeartButton(item: .episode(episode), name: episode.video.videoName, onArtwork: true, revealed: heartRevealed)
+                .fixedSize()
+                .padding(8)
+            #endif
+        }
+        .overlay(alignment: .topTrailing) { if hovering { detailsLink.padding(8).transition(.opacity) } }
+        #if !os(tvOS)
+        .onHover { hovering = $0 }
+        .animation(.smooth(duration: 0.15), value: hovering)
+        #endif
+    }
+
+    /// The title's page, where a click on the card only plays the episode. A pointer shows it, as on history cards.
+    @ViewBuilder private var detailsLink: some View {
+        if let listing = episode.video.listingVideo(), let client = store.catalogClient(for: episode.video) {
+            RouteLink { VideoDetailView(video: listing, client: client) } label: {
+                Image(systemName: "info").font(.system(size: 11, weight: .bold)).foregroundStyle(.white).artworkBadge()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n.text("Show Details")).help(L10n.text("Show Details"))
+        }
+    }
+}
+
+struct ChannelLogo: View {
+    let channel: Channel
+    var size: CGFloat = 50
+    private static let palette: [[Color]] = [
+        [Brand.cyan, Color(red: 0.05, green: 0.36, blue: 0.75)], [Brand.indigo, Color(red: 0.20, green: 0.22, blue: 0.62)],
+        [Brand.teal, Color(red: 0.04, green: 0.42, blue: 0.55)], [Color(red: 0.62, green: 0.50, blue: 1.0), Color(red: 0.32, green: 0.18, blue: 0.62)],
+        [Color(red: 0.45, green: 0.66, blue: 0.95), Color(red: 0.16, green: 0.30, blue: 0.55)],
+    ]
+    private var colors: [Color] {
+        Self.palette[channel.name.unicodeScalars.reduce(0) { $0 &+ Int($1.value) } % Self.palette.count]
+    }
+    var body: some View {
+        #if os(tvOS)
+        let size: CGFloat = 72
+        #endif
+        ZStack {
+            LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+            Text(String(channel.name.trimmingCharacters(in: .whitespaces).prefix(1)).uppercased())
+                .font(.system(size: size * 0.4, weight: .bold, design: .rounded)).foregroundStyle(.white)
+            if let logo = channel.logo {
+                AsyncImage(url: logo) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFit().padding(size * 0.12)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.white.opacity(0.95))
+                    }
+                }
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+    }
+}
+
+struct ChannelCard: View {
+    @Environment(Store.self) private var store
+    @Environment(\.stripDrag) private var drag
+    let channel: Channel
+    /// How the card plays its channel, when it is one of a list to switch through (#1010).
+    var play: ((Channel) -> Void)? = nil
+    var body: some View {
+        let favorite = store.isFavorite(channel)
+        HStack(spacing: 10) {
+            Button {
+                guard drag?.active != true else { return }
+                if let play { play(channel) } else { store.playing = channel }
+            } label: {
+                HStack(spacing: 14) {
+                    ChannelLogo(channel: channel)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(channel.name).font(.headline).foregroundStyle(.primary).lineLimit(1)
+                        // What's on now, when the playlist has a guide (#802).
+                        NowOnText(channel: channel, otherwise: channel.displayGroup).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }.contentShape(Rectangle())
+            }.rowCardButton()
+            ProgrammeCatchupButton(channel: channel) { replay in
+                if let play { play(replay) } else { store.playing = replay }
+            }
+            .labelStyle(.iconOnly).buttonStyle(.plain).frame(width: 44, height: 44)
+            Button { if drag?.active != true { store.toggleFavorite(channel) } } label: {
+                Image(systemName: favorite ? "heart.fill" : "heart")
+                    .font(.title3).foregroundStyle(favorite ? Brand.rose : .secondary)
+                    .frame(width: 44, height: 44).contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(favorite ? L10n.text("Remove %@ from favorites", channel.name) : L10n.text("Add %@ to favorites", channel.name))
+        }
+        .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+        .contentPanel()
+    }
+}
+
+/// Every live platform and playlist with a tick: ticked ones show in Live TV, Watch Now and live search (#601, #783, #837).
+/// The built-in platforms and a subscription's playlists can't be deleted on their own, so they are hidden; a playlist
+/// added as its own subscription can be removed, and another one added, from here.
+struct LiveSourcesEditor: View {
+    @Environment(Store.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    @State private var removing: SubscriptionEntry?
+    #if os(iOS)
+    @State private var adding = false
+    #endif
+
+    private var platforms: [LiveSource] { store.allLiveSources.filter(\.isBuiltIn) }
+    private var groups: [LivePlaylistGroup] { store.livePlaylistGroups(store.allLiveSources) }
+    private var sections: [(id: String, title: String, sources: [LiveSource])] {
+        (platforms.isEmpty ? [] : [("platforms", L10n.text("Live Platforms"), platforms)])
+            + groups.map { ($0.id.isEmpty ? "playlists" : $0.id, $0.title ?? L10n.text("Live Playlists"), $0.sources) }
+    }
+    private func shown(_ source: LiveSource) -> Bool { !store.hiddenLiveSources.contains(source) }
+    private func setHidden(_ sources: [LiveSource], _ hidden: Bool) {
+        withAnimation(.smooth) { store.hiddenLiveSources.setHidden(sources, hidden: hidden) }
+    }
+    private var removeTitle: String { removing.map { L10n.text("Remove the playlist %@?", $0.title) } ?? "" }
+    private var removingShown: Binding<Bool> { Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }) }
+
+    var body: some View {
+        #if os(tvOS)
+        TVSettingsSubpage(symbol: "eye.slash", title: L10n.text("Hide or Show Live TV"),
+                          subtitle: L10n.text("Ticked platforms and playlists show in Live TV and Watch Now.")) {
+            ForEach(sections, id: \.id) { section in
+                TVSettingsSection(title: section.title) {
+                    ForEach(section.sources) { source in
+                        let isShown = shown(source)
+                        Button { setHidden([source], isShown) } label: {
+                            TVSettingsRowLabel(title: source.name, value: isShown ? nil : L10n.text("Hidden")) {
+                                Image(systemName: isShown ? "checkmark.circle.fill" : "circle").font(.system(size: 30))
+                            }
+                        }
+                        .glassRow()
+                        .accessibilityAddTraits(isShown ? [.isSelected] : [])
+                        .contextMenu {
+                            if let entry = store.playlistSubscription(source) {
+                                Button(role: .destructive) { removing = entry } label: { Label(L10n.text("Remove Playlist"), systemImage: "trash") }
+                            }
+                        }
+                    }
+                }
+            }
+            TVSettingsSection(footer: L10n.text("An M3U or TXT address, or a subscription with live playlists.")) {
+                TVSettingsLink(title: L10n.text("Add Live Playlist")) { TVAddSubscriptionPage() }
+            }
+        }
+        .confirmationDialog(removeTitle, isPresented: removingShown, titleVisibility: .visible) { removeActions } message: { removeMessage }
+        #else
+        NavigationStack {
+            List {
+                Section {
+                    Text(L10n.text("Ticked platforms and playlists show in Live TV and Watch Now."))
+                        .font(.subheadline).foregroundStyle(.secondary)
+                        #if os(iOS)
+                        .listRowBackground(Surface())
+                        #endif
+                } footer: {
+                    Text(L10n.text("Built-in platforms and a subscription's playlists can't be deleted, only hidden. A playlist added as its own subscription can be removed here."))
+                }
+                ForEach(sections, id: \.id) { section in
+                    let hidden = section.sources.filter { !shown($0) }
+                    Section {
+                        ForEach(section.sources) { source in row(source) }
+                    } header: {
+                        HStack(spacing: 12) {
+                            Text(section.title).lineLimit(1)
+                            Spacer(minLength: 8)
+                            Button(L10n.text("Show All")) { setHidden(section.sources, false) }.disabled(hidden.isEmpty)
+                            Button(L10n.text("Hide All")) { setHidden(section.sources, true) }.disabled(hidden.count == section.sources.count)
+                        }
+                        .buttonStyle(.borderless)
+                        .textCase(nil)
+                    }
+                }
+                addSection
+            }
+            #if os(iOS)
+            .scrollContentBackground(.hidden)
+            .background { Backdrop() }
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .navigationTitle(L10n.text("Hide or Show Live TV"))
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.text("Done")) { dismiss() }.fontWeight(.semibold).accessibilityIdentifier("live.edit.done")
+                }
+            }
+            .confirmationDialog(removeTitle, isPresented: removingShown, titleVisibility: .visible) { removeActions } message: { removeMessage }
+            #if os(iOS)
+            .sheet(isPresented: $adding) { AddSubscriptionSheet() }
+            #endif
+        }
+        #if os(macOS)
+        .frame(width: 480, height: 600)
+        #endif
+        #endif
+    }
+
+    @ViewBuilder private var removeActions: some View {
+        Button(L10n.text("Remove Playlist"), role: .destructive) { if let removing { store.removeSubscription(removing) } }
+        Button(L10n.text("Cancel"), role: .cancel) {}
+    }
+    private var removeMessage: some View { Text(L10n.text("It was added as a subscription of its own, so the subscription is removed too.")) }
+
+    #if !os(tvOS)
+    private func row(_ source: LiveSource) -> some View {
+        let isShown = shown(source)
+        let entry = store.playlistSubscription(source)
+        return Button { setHidden([source], isShown) } label: {
+            HStack(spacing: 12) {
+                Image(systemName: isShown ? "checkmark.circle.fill" : "circle").font(.title3)
+                    .foregroundStyle(isShown ? AnyShapeStyle(Brand.accent) : AnyShapeStyle(.secondary))
+                Group {
+                    if let platform = source.platform { LivePlatformMark(platform: platform, size: 32) }
+                    else { MonogramIcon(seed: source.name, label: SourceLabel(source.name), size: 32) }
+                }
+                .opacity(isShown ? 1 : 0.45)
+                Text(source.name).font(.body.weight(.medium)).lineLimit(1)
+                    .foregroundStyle(isShown ? Color.primary : Color.secondary)
+                Spacer(minLength: 8)
+                if !isShown { Text(L10n.text("Hidden")).font(.caption).foregroundStyle(.secondary) }
+            }
+            .padding(.vertical, 3)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isShown ? [.isSelected] : [])
+        .swipeActions {
+            if let entry {
+                Button(role: .destructive) { removing = entry } label: { Label(L10n.text("Remove Playlist"), systemImage: "trash") }
+            }
+        }
+        .contextMenu {
+            if let entry {
+                Button(role: .destructive) { removing = entry } label: { Label(L10n.text("Remove Playlist"), systemImage: "trash") }
+            }
+        }
+        #if os(iOS)
+        .listRowBackground(Surface())
+        #endif
+    }
+
+    @ViewBuilder private var addSection: some View {
+        @Bindable var store = store
+        Section {
+            #if os(iOS)
+            Button { adding = true } label: { Label(L10n.text("Add Live Playlist"), systemImage: "plus") }
+                .listRowBackground(Surface())
+            #else
+            TextField(L10n.text("Subscription URL (TVBox JSON, M3U or TXT)"), text: $store.subscriptionAddress)
+                .autocorrectionDisabled()
+                .onSubmit(add)
+            Button(L10n.text("Add Live Playlist"), action: add)
+                .disabled(store.importing || store.subscriptionAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            #endif
+        } footer: {
+            if let error = store.importError { Text(error).foregroundStyle(Brand.amber) }
+            else { Text(L10n.text("An M3U or TXT address, or a subscription with live playlists.")) }
+        }
+    }
+
+    private func add() {
+        Task { await store.importSubscription() }
+    }
+    #endif
+}

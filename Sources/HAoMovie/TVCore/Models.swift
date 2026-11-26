@@ -1,0 +1,331 @@
+import Foundation
+
+public enum TVError: LocalizedError, Sendable {
+    case invalidURL, invalidConfiguration, emptyPlaylist, http(Int), unsupported(String)
+    public var errorDescription: String? {
+        switch self {
+        case .invalidURL: L10n.text("Enter a valid HTTP or HTTPS URL.")
+        case .invalidConfiguration: L10n.text("No valid TVBox sources or live playlists were found.")
+        case .emptyPlaylist: L10n.text("No HTTP/HTTPS channels were found in this playlist.")
+        case .http(let code): L10n.text("The server returned HTTP %lld.", code)
+        case .unsupported(let reason): reason
+        }
+    }
+}
+
+/// A plugin host's error envelope: a user-facing reason, plus a diagnostics line that keeps the
+/// error code and stack trace so a failing source can be fixed later without reproducing it.
+public enum JSONValue: Codable, Equatable, Sendable {
+    case string(String), number(Double), bool(Bool), object([String: JSONValue]), array([JSONValue]), null
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { self = .null }
+        else if let v = try? c.decode(Bool.self) { self = .bool(v) }
+        else if let v = try? c.decode(Double.self) { self = .number(v) }
+        else if let v = try? c.decode(String.self) { self = .string(v) }
+        else if let v = try? c.decode([String: JSONValue].self) { self = .object(v) }
+        else { self = .array(try c.decode([JSONValue].self)) }
+    }
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        switch self {
+        case .string(let v): try c.encode(v)
+        case .number(let v): try c.encode(v)
+        case .bool(let v): try c.encode(v)
+        case .object(let v): try c.encode(v)
+        case .array(let v): try c.encode(v)
+        case .null: try c.encodeNil()
+        }
+    }
+    public var string: String? {
+        switch self {
+        case .string(let v): v
+        case .number(let v): v.rounded() == v ? String(format: "%.0f", v) : String(v)
+        default: nil
+        }
+    }
+    public var int: Int? { string.flatMap(Int.init) }
+    public var object: [String: JSONValue]? { if case .object(let v) = self { v } else { nil } }
+    public var array: [JSONValue]? { if case .array(let v) = self { v } else { nil } }
+}
+
+public enum WebAddress {
+    /// An address a person typed or pasted: full-width `：／` become ASCII, and a bare host such as
+    /// `example.com/config.json` or `192.168.1.5:8080/a` gets `http://` (as browsers do). Text with a
+    /// space, another scheme, or no dot in the host is left for `resolve` to reject.
+    public static func resolve(typed text: String) throws -> URL {
+        var value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "：", with: ":").replacingOccurrences(of: "／", with: "/")
+        if value.range(of: "^[^\\s/?#:]+\\.[^\\s/?#:]+(:[0-9]+)?([/?#]\\S*)?$", options: .regularExpression) != nil {
+            value = "http://" + value
+        }
+        return try resolve(value)
+    }
+    public static func resolve(_ text: String, relativeTo base: URL? = nil) throws -> URL {
+        var value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // As browsers do (WHATWG URL), an absolute http(s) address ignores missing or extra slashes:
+        // "https:/host/path" is "https://host/path". Only standalone addresses: a base keeps Foundation's rules.
+        if base == nil { value = value.replacingOccurrences(of: "^(?i)(https?):/+", with: "$1://", options: .regularExpression) }
+        // Encode Unicode without re-encoding existing %HH sequences. Foundation's
+        // automatic repair can otherwise turn %26 into %2526 in mixed Unicode URLs.
+        var allowed = CharacterSet.urlFragmentAllowed
+        allowed.insert(charactersIn: "#")
+        guard !value.isEmpty, let escaped = value.addingPercentEncoding(withAllowedCharacters: allowed) else { throw TVError.invalidURL }
+        var encoded = escaped.replacingOccurrences(of: "%25([0-9A-Fa-f]{2})", with: "%$1", options: .regularExpression)
+        // Brackets are legal in an IPv6 authority, but must be escaped in filenames.
+        // Leaving a filename's brackets raw makes Foundation repair the whole URL,
+        // encoding existing percent escapes a second time.
+        if let authority = encoded.range(of: "^(?:[A-Za-z][A-Za-z0-9+.-]*:)?//[^/?#]*", options: .regularExpression) {
+            let host = encoded[authority].replacingOccurrences(of: "%5B", with: "[", options: .caseInsensitive)
+                .replacingOccurrences(of: "%5D", with: "]", options: .caseInsensitive)
+            encoded.replaceSubrange(authority, with: host)
+        }
+        guard var components = URLComponents(string: encoded) else { throw TVError.invalidURL }
+        // Setting the decoded host asks Foundation to apply IDNA (Punycode).
+        if let host = components.host { components.host = host }
+        guard let url = components.url(relativeTo: base)?.absoluteURL,
+              ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+              let host = url.host, !host.isEmpty else { throw TVError.invalidURL }
+        return url
+    }
+}
+
+/// How a source runs, in preference order. `SourceStrategy` lists, searches, and defaults to lower
+/// ranks first: a standard JSON API is one HTTP request, Python and Node start in well under a
+/// second, and a JAR needs the JVM plus DEX conversion on first use.
+public enum SourceRuntime: Int, Comparable, Codable, Sendable {
+    case api, python, javascript, jar, unsupported
+    public static func < (lhs: SourceRuntime, rhs: SourceRuntime) -> Bool { lhs.rawValue < rhs.rawValue }
+}
+
+public struct Site: Identifiable, Codable, Hashable, Sendable {
+    public let key: String
+    public let name: String
+    public let type: Int
+    public let api: String
+    public let raw: [String: JSONValue]
+    /// The subscription this source came from, once several are merged; see `Subscription.merge`.
+    public var provenance: SourceProvenance? = nil
+    /// What a type 3 api that names no kind of file turned out to hold; see `Subscription.sniffingScripts`.
+    public var detectedRuntime: SourceRuntime? = nil
+    public var id: String { key }
+    public var native: Bool { (type == 1 || type == 4) && !missingAPI }
+    /// Merged subscriptions sometimes carry entries with an empty api; they cannot run anywhere.
+    private var missingAPI: Bool { api.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    public func pluginURL(origin: URL, fallback: URL?) throws -> URL? {
+        guard let address = raw["jar"]?.string, !address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return fallback }
+        return try WebAddress.resolve(address.components(separatedBy: ";md5;")[0], relativeTo: origin)
+    }
+    func pluginExtension(origin: URL?) throws -> JSONValue? {
+        if isBuiltIn { return builtInExtension }
+        guard let origin else { return raw["ext"] }
+        func resolve(_ value: JSONValue) throws -> JSONValue {
+            switch value {
+            case .string(let text) where text.hasPrefix("./") || text.hasPrefix("../") || text.hasPrefix("//"):
+                return .string(try WebAddress.resolve(text, relativeTo: origin).absoluteString)
+            case .object(let fields): return .object(try fields.mapValues(resolve))
+            case .array(let items): return .array(try items.map(resolve))
+            default: return value
+            }
+        }
+        return try raw["ext"].map(resolve)
+    }
+    /// A CatPawOpen bundle (see CatPawOpen), whose config center signs in to drives with its own codes (`CatPawSignIn`).
+    public var isCatPawOpen: Bool { raw["catPawOpen"] != nil }
+    /// Classified like TVBox: a `.js` api runs in the JavaScript host, a `.py` api (or a legacy
+    /// `py_` key whose ext is the script) in the Python host, and any other type 3 api is a JAR class,
+    /// unless its download showed otherwise.
+    public var runtime: SourceRuntime {
+        if native { return .api }
+        guard type == 3, !missingAPI else { return .unsupported }
+        // A CatPawOpen bundle is a Node server (see CatPawOpen): the Mac's Node, or nodejs-mobile in the app.
+        if raw["catPawOpen"] != nil {
+            #if os(macOS)
+            return .javascript
+            #elseif os(iOS) || os(tvOS)
+            return EmbeddedNodeHost.available ? .javascript : .unsupported
+            #else
+            return .unsupported
+            #endif
+        }
+        let path = api.lowercased()
+        if path.hasSuffix(".js") || path.contains(".js?") { return .javascript }
+        if path.contains(".py") || (api.hasPrefix("py_") && raw["ext"]?.string?.lowercased().contains(".py") == true) { return .python }
+        return detectedRuntime ?? .jar
+    }
+    /// The script a JavaScript or Python source runs, relative to the subscription.
+    public func scriptURL(origin: URL) throws -> URL {
+        if runtime == .python, api.hasPrefix("py_"), let script = raw["ext"]?.string { return try WebAddress.resolve(script, relativeTo: origin) }
+        return try WebAddress.resolve(api, relativeTo: origin)
+    }
+    public var compatibility: String {
+        switch runtime {
+        case .api: return L10n.text("Standard API")
+        case .unsupported: return L10n.text("Unsupported API")
+        case .javascript, .python:
+            return L10n.text("Requires script engine")
+        case .jar:
+            if isBuiltIn { return L10n.text("Recommended") }
+            return L10n.text("Requires Android plugin")
+        }
+    }
+    public static func == (lhs: Site, rhs: Site) -> Bool { lhs.key == rhs.key && lhs.raw == rhs.raw }
+    public func hash(into hasher: inout Hasher) { hasher.combine(key) }
+}
+
+public struct LiveSource: Identifiable, Codable, Hashable, Sendable {
+    public let name: String
+    public let url: URL
+    public let headers: [String: String]
+    /// The program guide its subscription entry names (`epg`): an XMLTV file, or an address with `{name}` (#802).
+    public let guide: String?
+    /// The subscription's JAR spider, for a playlist on Android TVBox's local server that only it can answer
+    /// (`LoopbackPlaylist`).
+    public var spider: LiveSpider?
+    public var id: String { name + "|" + url.absoluteString }
+    public init(name: String, url: URL, headers: [String: String] = [:], guide: String? = nil, spider: LiveSpider? = nil) {
+        self.name = name; self.url = url; self.headers = headers; self.guide = guide; self.spider = spider
+    }
+}
+
+public struct Subscription: Codable, Sendable {
+    public let origin: URL
+    public let importedAt: Date
+    public let sites: [Site]
+    public let lives: [LiveSource]
+    public let raw: [String: JSONValue]
+    public var spiderURL: URL? {
+        guard let text = raw["spider"]?.string?.components(separatedBy: ";md5;").first else { return nil }
+        return try? WebAddress.resolve(text, relativeTo: origin)
+    }
+    /// `headers` are the ones written after the added address (`url|User-Agent=…`); a bare playlist's channels take them.
+    public static func parse(_ data: Data, origin: URL, headers: [String: String] = [:]) throws -> Subscription {
+        let raw: [String: JSONValue]
+        do { raw = try SubscriptionDocument.decode(data) } catch {
+            // A bare M3U / TXT live playlist imports as a subscription that holds just that playlist.
+            guard isLivePlaylist(data, origin: origin) else { throw error }
+            return Subscription(origin: origin, importedAt: Date(), sites: [],
+                                lives: [LiveSource(name: L10n.text("Live TV"), url: origin, headers: headers)], raw: [:])
+        }
+        if raw["sites"] == nil, raw["lives"] == nil,
+           raw["urls"] != nil || raw["storeHouse"] != nil {
+            throw TVError.unsupported(L10n.text("This URL is a subscription directory. Import an individual subscription URL from it."))
+        }
+        var seen = Set<String>()
+        let sites = (raw["sites"]?.array ?? []).compactMap { entry -> Site? in
+            guard let v = entry.object, let key = v["key"]?.string, !key.isEmpty,
+                  let api = v["api"]?.string, let type = v["type"]?.int, seen.insert(key).inserted else { return nil }
+            return Site(key: key, name: Site.localizedName(v) ?? v["name"]?.string ?? key, type: type, api: api, raw: v)
+        }
+        // A playlist on Android TVBox's local server may need the subscription's spider to answer it.
+        func spider() -> LiveSpider? {
+            LiveSpider.pick(sites, origin: origin, spider: raw["spider"]?.string?.components(separatedBy: ";md5;").first
+                .flatMap { try? WebAddress.resolve($0, relativeTo: origin) })
+        }
+        func live(_ v: [String: JSONValue], address: String, name: String?) -> LiveSource? {
+            let address = LoopbackPlaylist.normalize(address)
+            guard let url = (try? WebAddress.resolve(address, relativeTo: origin)) ?? LiveCatalog.platformAddress(address) else { return nil }
+            var headers = v["header"]?.object?.compactMapValues(\.string) ?? [:]
+            if let ua = v["ua"]?.string { headers["User-Agent"] = ua }
+            let guide = v["epg"]?.string.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }
+            return LiveSource(name: name ?? L10n.text("Live TV"), url: url, headers: headers, guide: guide,
+                              spider: LoopbackPlaylist.isLoopback(url) ? spider() : nil)
+        }
+        let lives = (raw["lives"]?.array ?? []).flatMap { entry -> [LiveSource] in
+            guard let v = entry.object else { return [] }
+            if let address = v["url"]?.string {
+                return live(v, address: address, name: Site.localizedName(v) ?? v["name"]?.string).map { [$0] } ?? []
+            }
+            // TVBox's first format: `{"group":"redirect","channels":[{"name":…,"urls":["proxy://do=live&…"]}]}`, where
+            // each channel is a playlist.
+            return (v["channels"]?.array ?? []).compactMap { channel -> LiveSource? in
+                guard let item = channel.object, let address = item["urls"]?.array?.first?.string,
+                      v["group"]?.string == "redirect" || address.lowercased().hasPrefix("proxy://") else { return nil }
+                return live(v, address: address, name: item["name"]?.string)
+            }
+        }
+        guard !sites.isEmpty || !lives.isEmpty else { throw TVError.invalidConfiguration }
+        return Subscription(origin: origin, importedAt: Date(), sites: sites, lives: lives, raw: raw)
+    }
+    /// An M3U playlist, or a TXT one that opens with a `group,#genre#` header or a `name,url` channel,
+    /// with at least one channel. A malformed JSON configuration never qualifies.
+    static func isLivePlaylist(_ data: Data, origin: URL) -> Bool {
+        guard let text = String(data: data, encoding: .utf8),
+              let first = text.replacingOccurrences(of: "\u{FEFF}", with: "").split(whereSeparator: \.isNewline)
+                .lazy.map({ $0.trimmingCharacters(in: .whitespaces) }).first(where: { !$0.isEmpty }) else { return false }
+        let parts = first.split(separator: ",", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+        let playlist = first.hasPrefix("#EXTM3U") || first.hasPrefix("#EXTINF:")
+            || (parts.count == 2 && (parts[1] == "#genre#" || parts[1].contains("://")))
+        return playlist && (try? Playlist.parse(text, origin: origin)) != nil
+    }
+}
+
+/// Another address of a live channel, with the request headers it needs (#679).
+public struct ChannelLine: Codable, Hashable, Sendable {
+    public let url: URL
+    public let headers: [String: String]
+    public var catchup: ChannelCatchup?
+    public init(url: URL, headers: [String: String] = [:], catchup: ChannelCatchup? = nil) {
+        self.url = url; self.headers = headers; self.catchup = catchup
+    }
+}
+
+public struct Channel: Identifiable, Codable, Hashable, Sendable {
+    public let name: String
+    public let group: String
+    public let url: URL
+    public let logo: URL?
+    public let headers: [String: String]
+    /// Present for catalog videos; live channels never share episode-skip preferences.
+    public let skipScope: String?
+    public let historyContext: PlaybackHistoryContext?
+    public let resumePosition: Double?
+    /// Subtitle files the source offers beside the video. Not saved: a plugin's addresses last one session.
+    public var subtitles: [ExternalSubtitle] = []
+    /// Stretches the source marks as opening or ending credits. Not saved either.
+    public var skips: [PlaybackSkip] = []
+    /// A live channel's other addresses, after `url`: a playlist that lists the channel more than once in a group, or
+    /// TVBox's `url1#url2`. The player tries the next when one doesn't play (#679). Saved with a favorite.
+    public var alternates: [ChannelLine] = []
+    /// The playlist's `tvg-id` (or `tvg-name`) for the channel, to find it in a program guide (#802). Saved.
+    public var guideID: String? = nil
+    /// Provider-declared history support for this address, saved with favorites.
+    public var catchup: ChannelCatchup? = nil
+    /// A finite programme generated from a catchup declaration; never a live-room or automatic next-channel item.
+    public var replay: ProgrammeReplay? = nil
+    /// Every address of the channel as a channel of its own, `url` first; just the channel when it has one.
+    public var lines: [Channel] {
+        [self] + alternates.map {
+            var line = Channel(name: name, group: group, url: $0.url, logo: logo, headers: $0.headers)
+            line.guideID = guideID
+            line.catchup = $0.catchup
+            return line
+        }
+    }
+    public var displayGroup: String { group.isEmpty ? L10n.text("Ungrouped") : group }
+    public var id: String { group + "|" + name + "|" + url.absoluteString }
+    public init(name: String, group: String = "", url: URL, logo: URL? = nil, headers: [String: String] = [:], skipScope: String? = nil,
+                historyContext: PlaybackHistoryContext? = nil, resumePosition: Double? = nil, subtitles: [ExternalSubtitle] = [],
+                skips: [PlaybackSkip] = []) {
+        self.name = name; self.group = group; self.url = url; self.logo = logo; self.headers = headers; self.skipScope = skipScope
+        self.historyContext = historyContext; self.resumePosition = resumePosition; self.subtitles = subtitles
+        self.skips = skips
+    }
+    private enum CodingKeys: String, CodingKey { case name, group, url, logo, headers, skipScope, historyContext, resumePosition, alternates, guideID, catchup, replay }
+    /// Favorites saved before channels had lines have none.
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        name = try values.decode(String.self, forKey: .name)
+        group = try values.decode(String.self, forKey: .group)
+        url = try values.decode(URL.self, forKey: .url)
+        logo = try values.decodeIfPresent(URL.self, forKey: .logo)
+        headers = try values.decode([String: String].self, forKey: .headers)
+        skipScope = try values.decodeIfPresent(String.self, forKey: .skipScope)
+        historyContext = try values.decodeIfPresent(PlaybackHistoryContext.self, forKey: .historyContext)
+        resumePosition = try values.decodeIfPresent(Double.self, forKey: .resumePosition)
+        alternates = try values.decodeIfPresent([ChannelLine].self, forKey: .alternates) ?? []
+        guideID = try values.decodeIfPresent(String.self, forKey: .guideID)
+        catchup = try values.decodeIfPresent(ChannelCatchup.self, forKey: .catchup)
+        replay = try values.decodeIfPresent(ProgrammeReplay.self, forKey: .replay)
+    }
+}

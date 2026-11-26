@@ -1,0 +1,607 @@
+import SwiftUI
+
+enum AppSection: String, CaseIterable, Identifiable, Hashable {
+    case home = "Watch Now", live = "Live TV", search = "Global Search", sites = "Sources", favorites = "Favorites", history = "Playback History", downloads = "Downloads", settings = "Settings", more = "More"
+    var id: String { rawValue }
+    /// The raw values are also saved settings and QA arguments, so the offline cache keeps its old one.
+    var title: String { self == .downloads ? L10n.text("Offline Cache") : L10n.text(rawValue) }
+    var icon: String {
+        switch self {
+        case .home: "play.rectangle.fill"
+        case .search: "magnifyingglass"
+        case .live: "dot.radiowaves.left.and.right"
+        case .sites: "square.grid.2x2.fill"
+        case .favorites: "heart.fill"
+        case .downloads: "arrow.down.circle.fill"
+        case .history: "clock.arrow.circlepath"
+        case .settings: "slider.horizontal.3"
+        case .more: "ellipsis"
+        }
+    }
+}
+
+struct RootView: View {
+    @Environment(Store.self) private var store
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    #if os(iOS)
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    #endif
+    // Untyped so it can hold both More-tab sections and Route pages.
+    @State private var morePath = NavigationPath()
+    @State private var moreSection: AppSection = .settings
+    #if os(iOS)
+    @AppStorage(PhoneTabs.storageKey) private var storedTabs = ""
+    /// The size classes the tab set is built for, a moment behind the window's: see `followsSizeClasses`.
+    @State private var tabSizeClasses: TabSizeClasses?
+    #endif
+    #if os(macOS)
+    /// Pushed pages in the detail column. Cleared on section change: the stack keeps them when its root is replaced.
+    @State private var detailPath = NavigationPath()
+    @State private var nowPlayingShown = false
+    @State private var hidesToolbar = false
+    #if os(macOS)
+    @State private var columns: NavigationSplitViewVisibility = .all
+    /// What the viewer had before the reader folded the sidebar away.
+    @State private var columnsBefore: NavigationSplitViewVisibility = .all
+    #endif
+    #endif
+    private var tabs: [AppSection] {
+        #if os(iOS)
+        if phoneTabs { return PhoneTabs(stored: storedTabs).arranged(slots: barSlots, hiding: store.hiddenSections).bar + [.more] }
+        #endif
+        #if os(tvOS)
+        if !tvMore.isEmpty { return Array(sections.prefix(Self.topBarSlots - 1)) + [.more] }
+        #endif
+        return sections
+    }
+    private var sections: [AppSection] {
+        #if os(iOS)
+        // The iPad's sidebar, in the order set in Settings > Edit Tab Bar (#427).
+        return PhoneTabs.sidebar(stored: storedTabs, hiding: store.hiddenSections)
+        #else
+        let sections = [AppSection.home, .live, .search, .sites, .favorites, .history, .downloads, .settings]
+            .filter { !store.hiddenSections.contains($0) }
+        #if os(tvOS)
+        // Where the remote already goes to change section, so the song is one move away from anywhere.
+        // Before tvOS 27 the sidebar has no header for the Now Playing card.
+        if store.music.track != nil, !MusicSidebarNowPlaying.inSidebarHeader { return [.nowPlaying] + sections }
+        #endif
+        return sections
+        #endif
+    }
+    #if os(tvOS)
+    /// tvOS 17 and 18 have the tab bar along the top (see `tabView`), and selecting its eighth or a later tab does
+    /// nothing. Past its seventh place, the bar ends in More with the rest, as on iPhone.
+    private static let topBarSlots = 7
+    private var tvMore: [AppSection] {
+        if #available(tvOS 26, *) { return [] }
+        return sections.count > Self.topBarSlots ? Array(sections.dropFirst(Self.topBarSlots - 1)) : []
+    }
+    #endif
+    var body: some View {
+        @Bindable var store = store
+        Group {
+            #if os(macOS)
+            NavigationSplitView(columnVisibility: $columns) {
+                MacSidebar()
+                    .navigationSplitViewColumnWidth(min: 190, ideal: 216, max: 260)
+            } detail: {
+                // The music bar floats over every page while a song is loaded, as in Music.
+                // The stack stays put across sections. Rebuilding it resets the sidebar column, so a
+                // section change collapsed the sidebar while the new page was still a placeholder.
+                NavigationStack(path: $detailPath) { content(store.section).musicBar().routeDestinations() }
+                    .environment(\.openRoute, RouteOpener { detailPath.append($0) })
+                    .overlay { ThemedTitleBand() }
+            }
+            .onChange(of: store.section) { detailPath = NavigationPath() }
+            .onChange(of: store.hidesSidebar) { _, hide in
+                if hide { columnsBefore = columns }
+                withAnimation(.smooth(duration: 0.3)) { columns = hide ? .detailOnly : columnsBefore }
+            }
+            .overlay {
+                if nowPlayingShown { MusicMacNowPlaying().ignoresSafeArea().transition(.move(edge: .bottom)) }
+            }
+            .background { NowPlayingWindowChrome(active: hidesToolbar, store: store) }
+            .background { MusicMiniPlayerTrigger() }
+            .onChange(of: store.music.presentsPlayer && store.music.track != nil) { _, show in
+                // Hiding the toolbar moves the page under it. The player slides up over the window
+                // first and the toolbar goes once it is covered; closing brings the toolbar back
+                // before the player slides away.
+                if show {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.92)) { nowPlayingShown = true } completion: {
+                        if nowPlayingShown { hidesToolbar = true }
+                    }
+                } else {
+                    hidesToolbar = false
+                    withAnimation(.spring(response: 0.4, dampingFraction: 1)) { nowPlayingShown = false }
+                }
+            }
+            #else
+            // The system tab bar on every size class: iOS 26 floats it over content and
+            // collapses extra sections into More, which a hand-built bar imitated poorly.
+            platformTabs
+            #endif
+        }
+        .onChange(of: store.section) { _, section in
+            if section != .search { store.searchModel.suspend() }
+        }
+        #if os(tvOS)
+        .fullScreenCover(isPresented: Binding(get: { store.music.presentsPlayer }, set: { store.music.presentsPlayer = $0 })) { MusicPlayerScreen() }
+        #endif
+        .modifier(PlayerPresentation(playing: $store.playing))
+        #if os(tvOS) || os(macOS)
+        // What another device sent, while it opens.
+        .overlay { PlayOnIncoming().animation(.spring(duration: 0.4), value: PlayOnController.shared.incoming?.title) }
+        #endif
+        .alert(L10n.text("Unable to Complete"), isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
+            Button(L10n.text("OK"), role: .cancel) { store.error = nil }
+        } message: { Text(store.error ?? "") }
+    }
+
+    #if !os(macOS)
+    #if os(iOS)
+    /// The phone's tab bar: the tabs the viewer arranged in Settings, then More with the rest. Which screens use
+    /// it, and why: `PhoneTabs.inUse`.
+    @AppStorage(PhoneTabs.labelsKey) private var showsTabLabels = true
+    @AppStorage(PhoneTabs.collapsesKey) private var collapsesTabBar = true
+    private var phoneTabs: Bool { PhoneTabs.inUse(horizontal: tabSizes.horizontal) }
+    /// Sections a phone reaches through More, as arranged in the tab bar editor.
+    private var inMore: [AppSection] { PhoneTabs(stored: storedTabs).arranged(slots: barSlots, hiding: store.hiddenSections).more }
+    private var barSlots: Int { PhoneTabs.slots(horizontal: tabSizes.horizontal, vertical: tabSizes.vertical) }
+    private var tabSizes: TabSizeClasses { tabSizeClasses ?? TabSizeClasses(horizontal: sizeClass, vertical: verticalSizeClass) }
+    struct TabSizeClasses: Equatable {
+        var horizontal: UserInterfaceSizeClass?
+        var vertical: UserInterfaceSizeClass?
+    }
+
+    /// The tab set changes with the size class: the iPad's sidebar sections become the phone bar and More, and
+    /// iPhone Duo's bar gains or loses places. Changed in the same update as the size class, it stopped the app
+    /// on iOS 27.0 and 27.1 ("-[__NSArrayM insertObject:atIndex:]: object cannot be nil" in
+    /// `-[UITabBarController _tabs_rebuildTabBarItemsAnimated:]`, TestFlight 47-51): SwiftUI let go of the leaving
+    /// tabs' view controllers, then UIKit rebuilt the bar for the new size class from the old tabs, and a leaving
+    /// tab among its first places had no item. On an iPad with Music in the sidebar, every resize to a narrow
+    /// window did it. The tab set now follows on the next turn of the main actor, so UIKit lays out the new size
+    /// class with the tabs it has, then gets the new ones.
+    private func followsSizeClasses(_ now: TabSizeClasses) {
+        guard tabSizeClasses != nil else { tabSizeClasses = now; return }
+        Task { @MainActor in tabSizeClasses = now }
+    }
+    #endif
+    private var platformTabs: some View {
+        rootTabs
+            #if os(tvOS)
+            .musicSidebarHeader()
+            // Now Playing is not a page: choosing it opens the full-screen player over the section
+            // the viewer was in. The sidebar selects on a click, not on focus, so passing it opens nothing.
+            .onChange(of: store.section) { previous, section in
+                guard section == .nowPlaying else { return }
+                store.section = previous == .nowPlaying ? .music : previous
+                store.music.presentsPlayer = true
+            }
+            // tvOS 17 and 18: a section in More opens there, whether a button or the Now Playing tab moved it in.
+            .onChange(of: store.section) { _, section in openInMore(section) }
+            .onChange(of: tvMore) { _, more in
+                if more.isEmpty && store.section == .more { store.section = morePath.isEmpty ? .home : moreSection }
+                else { openInMore(store.section) }
+            }
+            #endif
+            #if os(iOS)
+            .minimizesTabBarOnScroll(collapsesTabBar)
+            .onChange(of: TabSizeClasses(horizontal: sizeClass, vertical: verticalSizeClass), initial: true) { _, now in
+                followsSizeClasses(now)
+            }
+            .environment(\.sectionsInMore, phoneTabs ? inMore : [])
+            .onChange(of: store.section) { _, section in
+                if phoneTabs && inMore.contains(section) {
+                    moreSection = section; morePath = NavigationPath([section])
+                    store.section = .more
+                }
+            }
+            // Closing iPhone Duo narrows the side bar back to four: a section that just left it opens inside More.
+            .onChange(of: barSlots) { _, _ in
+                if phoneTabs && inMore.contains(store.section) {
+                    moreSection = store.section; morePath = NavigationPath([store.section]); store.section = .more
+                }
+            }
+            .onChange(of: phoneTabs) { _, phone in
+                if !phone && store.section == .more { store.section = morePath.isEmpty ? .settings : moreSection }
+                else if phone && inMore.contains(store.section) {
+                    moreSection = store.section; morePath = NavigationPath([store.section]); store.section = .more
+                }
+            }
+            #endif
+    }
+
+    /// On Apple TV, Back on the sidebar leaves the app, which is easy to do by mistake (#499). From any other section it
+    /// goes to Watch Now first, and only Back on Watch Now's sidebar leaves.
+    /// `onExitCommand` on the tab view hears Back only while the sidebar has focus: pages, pushed pages, sheets and the
+    /// player handle their own, and Back from a page still moves to the sidebar (#404). An empty handler would keep the
+    /// press too, so on Watch Now there is none (`nil`) and Back leaves as usual. The modifier stays in place rather than
+    /// in an `if`: swapping views would rebuild the tab view and every section's state with it when moving to or from
+    /// Watch Now. The tab bar with More on tvOS 17 and 18 is left as it was.
+    @ViewBuilder private var rootTabs: some View {
+        #if os(tvOS)
+        tabView.onExitCommand(perform: store.section == .home || !tvMore.isEmpty ? nil : { store.section = .home })
+        #else
+        tabView
+        #endif
+    }
+
+    @ViewBuilder private var tabView: some View {
+        @Bindable var store = store
+        if #available(iOS 18, tvOS 26, *) {
+            TabView(selection: $store.section) {
+                ForEach(tabs) { item in
+                    // The page is the section's own: iOS 18 keeps a tab's page by its place in the bar, so a section the
+                    // tab bar editor put in another's place (Novels for Favorites) got a stack whose links pushed
+                    // nothing (#1012, #1115). iOS 26 and 27 didn't.
+                    Tab(value: item) { tabPage(item).id(item) } label: { tabLabel(item) }
+                }
+            }
+            .tabViewStyle(.sidebarAdaptable)
+        } else {
+            // tvOS 17 and iOS 17 have no Tab or sidebar: the classic tab bar, along the top on Apple TV and at the
+            // bottom on iPad too. tvOS 18 gets it as well: its sidebar, which our sections are too many to fit in a bar
+            // along the top, can't be reached from a page: once focus left it, neither Back nor Left brought it back, so
+            // the viewer was stuck in that section (#1315). tvOS 26 fixed that.
+            TabView(selection: $store.section) {
+                ForEach(tabs) { item in
+                    tabPage(item).tabItem { tabLabel(item) }.tag(item)
+                }
+            }
+            #if os(iOS)
+            // iOS 17's classic tab bar crashes (SIGTRAP inside SwiftUI) on the first tap of a tab that the tab bar
+            // editor moved to another place, such as Global Search dragged to the front or Discover after Watch Now
+            // left the bar (#1231). A new tab bar for each tab set has nothing stale to tap. The set changes only
+            // when the viewer edits it, a section is hidden or shown, or the size class changes.
+            .id(tabs)
+            #endif
+        }
+    }
+
+    @ViewBuilder private func tabPage(_ item: AppSection) -> some View {
+        if item == .more {
+            NavigationStack(path: $morePath) {
+                content(.more).routeDestinations()
+                    // Any section can be moved into More, so any can be pushed here.
+                    .navigationDestination(for: AppSection.self) { content($0).tvDefaultControls() }
+            }
+            .environment(\.openRoute, RouteOpener { morePath.append($0) })
+        } else { RouteStack { content(item).tvDefaultControls() } }
+    }
+
+    #if os(tvOS)
+    private func openInMore(_ section: AppSection) {
+        guard tvMore.contains(section) else { return }
+        moreSection = section; morePath = NavigationPath([section]); store.section = .more
+    }
+    #endif
+
+    @ViewBuilder private func tabLabel(_ item: AppSection) -> some View {
+        #if os(tvOS)
+        if item == .nowPlaying { MusicTabLabel() } else { Label(item.title, systemImage: item.icon) }
+        #else
+        // Only the title changes, so the tab bar updates in place; VoiceOver still reads the name.
+        Label { Text(phoneTabs && !showsTabLabels ? "" : item.title) } icon: { Image(systemName: item.icon) }
+            .accessibilityLabel(item.title)
+        #endif
+    }
+
+    #endif
+
+
+    @ViewBuilder private func content(_ section: AppSection) -> some View {
+        sectionRoot(section)
+    }
+
+    @ViewBuilder private func sectionRoot(_ section: AppSection) -> some View {
+        if section == .more {
+            // Only the phone's tab bar and the tab bar on tvOS 17 and 18 have a More tab.
+            #if os(iOS)
+            MoreView()
+            #elseif os(tvOS)
+            TVMoreView(sections: tvMore)
+            #else
+            EmptyView()
+            #endif
+        } else {
+            SectionPage(section: section)
+        }
+    }
+}
+
+/// A section's own page, as its tab shows it, More pushes it, or a heading on another page opens it (`SectionOpener`).
+struct SectionPage: View {
+    let section: AppSection
+    var body: some View {
+        switch section {
+        case .home: HomeView()
+        case .search: GlobalSearchView()
+        case .live: LiveView()
+        case .sites: SitesView()
+        case .favorites: FavoritesView()
+        case .downloads: DownloadsView()
+        case .history: PlaybackHistoryView()
+        case .settings: SettingsView()
+        case .more: EmptyView()
+        }
+    }
+}
+
+extension EnvironmentValues {
+    /// The sections the phone's tab bar leaves to More. Empty where every section has a tab or a sidebar row.
+    @Entry var sectionsInMore: [AppSection] = []
+}
+
+/// Opens a section from a heading on a page, such as Watch Now's "Continue Watching ›". A section with a tab of its own is
+/// selected. One the phone keeps in More is pushed onto the page's own stack, so Back returns to the page: selecting it
+/// moved the app to the More tab with the section on top, and Back from there landed on More's list (#700).
+@MainActor struct SectionOpener: DynamicProperty {
+    @Environment(Store.self) private var store
+    @Environment(\.openRoute) private var openRoute
+    @Environment(\.sectionsInMore) private var inMore
+    func callAsFunction(_ section: AppSection) {
+        if inMore.contains(section), let openRoute {
+            openRoute(Route { AnyView(SectionPage(section: section).tvDefaultControls()) })
+        } else {
+            store.section = section
+        }
+    }
+}
+
+#if os(tvOS)
+/// The More tab on tvOS 17 and 18: the sections that did not fit in the tab bar.
+private struct TVMoreView: View {
+    let sections: [AppSection]
+    var body: some View {
+        List(sections) { section in
+            NavigationLink(value: section) { Label(section.title, systemImage: section.icon) }
+        }
+        // The rows at Settings' width on the app's navy canvas, instead of the system's grey across the screen.
+        .frame(maxWidth: Layout.settingsWidth)
+        .frame(maxWidth: .infinity)
+        .background { Backdrop() }
+        .navigationTitle(AppSection.more.title)
+    }
+}
+#endif
+
+#if !os(macOS)
+/// What the player cover shows; the same presentation whichever channel it holds.
+struct PlayerSlot: Identifiable {
+    let channel: Channel
+    var id: String { "player" }
+}
+#endif
+
+private struct PlayerPresentation: ViewModifier {
+    @Environment(Store.self) private var store
+    @Binding var playing: Channel?
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        // The window follows the store itself: a library window closed while a video plays mustn't take it along (#2107).
+        content.onAppear { PlayerWindowController.shared.follow(store) }
+        #else
+        // One presentation while anything plays: the next episode replaces the channel inside the player.
+        // Keyed by the channel, every change dismissed the player and presented a new one, so even a
+        // queued episode would stop and load.
+        // An iPhone watch page plays its own video at the top of the page (`VideoDetailView`).
+        // A catalog search sheet on screen presents the player itself: a cover from here is under that sheet,
+        // and presenting over it tears the sheet down, so the viewer lands back on the page under it (#1618).
+        content.fullScreenCover(item: Binding(get: { store.playsInWatchPage(playing) || !store.catalogSearchSheets.isEmpty ? nil : playing.map(PlayerSlot.init) },
+                                              set: { if $0 == nil, !store.playsInWatchPage(playing) { playing = nil } })) {
+            // Handed in: the iPad app on a Mac presents a full-screen cover without the presenter's environment
+            // objects, and every video stopped the app there ("No Observable object of type Store found").
+            PlaybackView(channel: $0.channel).environment(store)
+        }
+        #endif
+    }
+}
+
+#if os(macOS)
+/// Content-first sidebar: grouped rows, neutral selection, and ⌘1–⌘8 to switch sections.
+private struct MacSidebar: View {
+    @Environment(Store.self) private var store
+    @Environment(Updates.self) private var updates
+    private var groups: [(title: String, items: [AppSection])] {
+        let groups: [(title: String, items: [AppSection])] = [(L10n.text("Browse"), [.home, .discover, .search, .live, .music, .manga, .novels, .sites, .files]),
+                                                             (L10n.text("Library"), [.history, .favorites, .downloads, .settings])]
+        return groups.map { (title: $0.title, items: $0.items.filter { !store.hiddenSections.contains($0) }) }
+    }
+
+    var body: some View {
+        let ordered = groups.flatMap(\.items)
+        let decor = ColorThemes.shared.current.palette.regions?.decor
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                ForEach(groups, id: \.title) { group in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(group.title)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(decor == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Brand.accent.opacity(0.85)))
+                            .padding(.horizontal, 10).padding(.bottom, 4)
+                            .accessibilityAddTraits(.isHeader)
+                        ForEach(group.items) { item in
+                            SidebarRow(section: item, selected: store.section == item,
+                                       decor: decor.map { $0[(ordered.firstIndex(of: item) ?? 0) % $0.count] },
+                                       badge: item.showsUpdateBadge && !updates.available.isEmpty,
+                                       shortcut: (ordered.firstIndex(of: item).map { $0 + 1 }).flatMap { $0 < 10 ? Character(String($0)) : nil }) {
+                                store.section = item
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 10).padding(.top, 6).padding(.bottom, 12)
+        }
+        .scrollIndicators(.never)
+        .safeAreaInset(edge: .bottom, spacing: 0) { SidebarStatus() }
+        .background { ThemedSidebarFill() }
+    }
+}
+
+private struct SidebarRow: View {
+    let section: AppSection
+    let selected: Bool
+    /// A mixed theme's icon colour for this row.
+    var decor: Color? = nil
+    var badge = false
+    /// ⌘1–⌘9; sections past the ninth have none.
+    let shortcut: Character?
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        // Classic keeps the neutral rows; another theme draws the icons and the selection in its highlight.
+        let themed = ColorThemes.shared.tintsChrome
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: section.icon)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(decor.map { AnyShapeStyle($0) } ?? (themed ? AnyShapeStyle(Brand.accent.opacity(selected ? 1 : 0.8))
+                                     : selected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
+                    .frame(width: 20)
+                Text(section.title)
+                    .font(.system(size: 13, weight: selected ? .semibold : .regular))
+                    .foregroundStyle(themed && selected ? AnyShapeStyle(Brand.accent) : AnyShapeStyle(.primary))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if badge { NewBadge() }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .background {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(themed ? Brand.accent.opacity(selected ? 0.2 : (hovering ? 0.08 : 0))
+                                 : Color.primary.opacity(selected ? 0.11 : (hovering ? 0.05 : 0)))
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.smooth(duration: 0.15), value: hovering)
+        .keyboardShortcut(shortcut.map { KeyboardShortcut(KeyEquivalent($0), modifiers: .command) })
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+#endif
+
+struct SidebarStatus: View {
+    /// "Version 1.0 (1)"; nil when the bundle carries no version (e.g. MARKETING_VERSION unset).
+    private var version: String? {
+        let info = Bundle.main.infoDictionary
+        guard let short = info?["CFBundleShortVersionString"] as? String, !short.isEmpty else { return nil }
+        let build = info?["CFBundleVersion"] as? String ?? ""
+        let text = L10n.text("Version %@", short)
+        return build.isEmpty || build == short ? text : "\(text) (\(build))"
+    }
+    var body: some View {
+        if let version {
+            // A mixed theme draws it as an editor's status bar, in a strip of its own colour.
+            let regions = ColorThemes.shared.current.palette.regions
+            Text(version)
+                .font(.caption).monospacedDigit().lineLimit(1)
+                .foregroundStyle(regions.map { AnyShapeStyle($0.onStatus) } ?? AnyShapeStyle(.tertiary))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20).frame(height: 40)
+                .background { regions?.status }
+                .overlay(alignment: .top) { if regions == nil { Divider().padding(.horizontal, 12) } }
+                .selectable()
+        }
+    }
+}
+
+/// A pushed page carried as a navigation-path value. View-destination `NavigationLink`s are not
+/// recorded in a stack's path, so they survive clearing it; inside NavigationSplitView that left a
+/// detail page covering the newly selected sidebar section.
+struct Route: Hashable, @unchecked Sendable {
+    private let id = UUID()
+    let build: @MainActor () -> AnyView
+    static func == (lhs: Route, rhs: Route) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+}
+
+/// Drop-in for `NavigationLink(destination:label:)` that pushes through the stack's path.
+struct RouteLink<Label: View>: View {
+    private let route: Route
+    private let label: Label
+    #if os(macOS)
+    @Environment(\.stripDrag) private var drag
+    @Environment(\.openRoute) private var openRoute
+    #endif
+    init<Destination: View>(@ViewBuilder destination: @escaping @MainActor () -> Destination, @ViewBuilder label: () -> Label) {
+        route = Route { AnyView(destination()) }
+        self.label = label()
+    }
+    var body: some View {
+        #if os(macOS)
+        // In a strip the link under the pointer gets the mouse-up that ends a drag, which must not open it.
+        if let drag, let openRoute {
+            Button { if !drag.active { openRoute(route) } } label: { label }
+        } else {
+            NavigationLink(value: route) { label }
+        }
+        #else
+        NavigationLink(value: route) { label }
+        #endif
+    }
+}
+
+extension EnvironmentValues {
+    /// Pushes a page onto the enclosing stack's path. A page opened with `navigationDestination(item:)` is not on the
+    /// path, so a `RouteLink` on it pushed underneath it: the new page only showed after Back.
+    @Entry var openRoute: RouteOpener? = nil
+}
+
+/// A tab's stack, with its own path so pages can be pushed from code (`openRoute`).
+private struct RouteStack<Root: View>: View {
+    @State private var stack = RoutePath()
+    private let root: Root
+    init(@ViewBuilder root: () -> Root) { self.root = root() }
+    var body: some View {
+        @Bindable var stack = stack
+        NavigationStack(path: $stack.path) { root.routeDestinations() }
+            .environment(\.openRoute, stack.opener)
+    }
+}
+
+/// A stack's path, and the one `openRoute` that pushes onto it for the stack's whole life.
+@MainActor @Observable private final class RoutePath {
+    var path = NavigationPath()
+    @ObservationIgnored private(set) lazy var opener = RouteOpener { [weak self] in self?.path.append($0) }
+}
+
+/// Pushes a page onto a stack's path (`openRoute`). An object rather than a closure: SwiftUI can't compare closures,
+/// so one in the environment was a new value on every update and every pushed page updated with it. On tvOS 27 an
+/// alert or sheet over a pushed page then kept the stack updating forever and froze the app (#272).
+@MainActor final class RouteOpener {
+    private let push: @MainActor (Route) -> Void
+    init(_ push: @escaping @MainActor (Route) -> Void) { self.push = push }
+    func callAsFunction(_ route: Route) { push(route) }
+}
+
+extension View {
+    /// Registers `Route` pages; apply once at the root of every NavigationStack.
+    func routeDestinations() -> some View {
+        #if os(macOS) || os(tvOS)
+        modifier(MacRouteDestinations())
+        #else
+        navigationDestination(for: Route.self) { $0.build() }
+        #endif
+    }
+}
+
+#if os(macOS) || os(tvOS)
+/// Pushed pages get `openRoute` too: the environment set on the detail stack reaches its root page, not the pages its
+/// destinations build, so a page opened from code (Discover's search, a person from it) pushed nothing.
+private struct MacRouteDestinations: ViewModifier {
+    @Environment(\.openRoute) private var openRoute
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content.navigationDestination(for: Route.self) { $0.build().musicBar().environment(\.openRoute, openRoute) }
+        #else
+        content.navigationDestination(for: Route.self) { $0.build().environment(\.openRoute, openRoute) }
+        #endif
+    }
+}
+#endif

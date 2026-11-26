@@ -1,0 +1,79 @@
+import Foundation
+
+/// A repackaged track's title and format, which its HLS option doesn't carry: AVPlayer names an option by its
+/// LANGUAGE alone (`displayName`, "Unknown" without one) and keeps its NAME as the option's title.
+public struct TrackDetail: Sendable, Equatable {
+    /// The stream's own title; empty when it has none.
+    public let title: String
+    /// "TrueHD 5.1", "PGS"; nil for a subtitle file or translation.
+    public let format: String?
+}
+
+
+/// How the player's Audio and Subtitles menus name a selection group's options: the language, then what else is
+/// known (a title, the format and channels), as "Korean · TrueHD 5.1". AVPlayer's `displayName` alone is the
+/// language, so tracks without one were all "Unknown" and tracks in one language looked alike (#884).
+public enum TrackLabel {
+    public struct Option: Sendable, Equatable {
+        /// AVPlayer's name for it: its language's, or "Unknown".
+        public var displayName: String
+        /// Its language tag; nil when it has none.
+        public var language: String?
+        /// Its title (the HLS NAME, or the repackaged stream's own title).
+        public var title: String?
+        public var format: String?
+        /// The playlist NAME can distinguish renditions with the same source title and codec.
+        public var rendition: String?
+        public init(displayName: String, language: String?, title: String?, format: String? = nil, rendition: String? = nil) {
+            self.displayName = displayName; self.language = language; self.title = title; self.format = format; self.rendition = rendition
+        }
+    }
+
+    /// Each option's name; a name two options share gets " (2)", " (3)" on the later ones.
+    public static func names(_ options: [Option]) -> [String] {
+        var seen: [String: Int] = [:]
+        return options.map { option in
+            let name = name(option)
+            seen[name, default: 0] += 1
+            return seen[name] == 1 ? name : "\(name) (\(seen[name]!))"
+        }
+    }
+
+    static func name(_ option: Option) -> String {
+        let language = option.language.flatMap { $0.isEmpty ? nil : $0 }
+        var parts: [String] = language == nil ? [] : [option.displayName]
+        if let title = option.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty, !names(of: language).contains(title.lowercased()),
+           title.caseInsensitiveCompare(option.displayName) != .orderedSame {
+            parts.append(title)
+        }
+        if let format = option.format, !format.isEmpty, !parts.contains(format) { parts.append(format) }
+        return parts.isEmpty ? option.displayName : parts.joined(separator: " · ")
+    }
+
+    /// An audio format name from an option's `mediaSubTypes` FourCCs, when the file wasn't repackaged
+    /// (`Remux.trackDetails` is empty). Nil for subtitles or unknown codecs.
+    public static func format(subTypes: [UInt32]) -> String? {
+        for code in subTypes {
+            switch code {
+            case 0x6161_6320, 0x6161_6368, 0x6161_6370: return "AAC"     // 'aac ', 'aach', 'aacp'
+            case 0x6163_2d33: return "AC-3"                               // 'ac-3'
+            case 0x6563_2d33: return "E-AC-3"                             // 'ec-3'
+            case 0x616c_6163: return "ALAC"                               // 'alac'
+            case 0x664c_6143: return "FLAC"                               // 'fLaC'
+            case 0x4f70_7573: return "Opus"                               // 'Opus'
+            case 0x6c70_636d: return "LPCM"                               // 'lpcm'
+            case 0x2e6d_7033: return "MP3"                                // '.mp3'
+            default: continue
+            }
+        }
+        return nil
+    }
+
+    /// A language's names a title may repeat: in English, in itself, and in this device's language.
+    private static func names(of language: String?) -> Set<String> {
+        guard let language else { return [] }
+        let code = Locale.Language(identifier: language).languageCode?.identifier ?? language
+        return Set([Locale(identifier: "en"), Locale(identifier: language), Locale.current]
+            .compactMap { $0.localizedString(forLanguageCode: code)?.lowercased() })
+    }
+}

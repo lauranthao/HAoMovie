@@ -1,0 +1,259 @@
+import CoreImage
+import Foundation
+
+/// CatPawOpen (猫源) bundles: one Node script, published as `index.js` beside its `index.js.md5`, that
+/// serves its sources over HTTP the way the CatVod Open apps run it. Its `/config` lists the sources and
+/// each answers at `/spider/<key>/<type>`. The Mac runs the bundle in the bundled Node host; iPhone, iPad and
+/// Apple TV in the embedded nodejs-mobile (`EmbeddedNodeHost`).
+public enum CatPawOpen {
+    /// The bundle an added address names: its checksum file (`…/index.js.md5`) or the bundle itself.
+    static func bundle(_ data: Data, at url: URL) -> URL? {
+        let path = url.path.lowercased()
+        if path.hasSuffix(".js.md5") {
+            let checksum = String(decoding: data.prefix(64), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard checksum.count == 32, checksum.allSatisfy(\.isHexDigit) else { return nil }
+            return url.deletingPathExtension()
+        }
+        if path.hasSuffix(".js"), data.range(of: Data("catServerFactory".utf8)) != nil { return url }
+        return nil
+    }
+
+    /// A bundle's own media proxy (`http://127.0.0.1:<port>/spider/<key>/<type>/proxy/…`), which streams drive files.
+    static func isMediaProxy(_ url: URL) -> Bool {
+        url.scheme == "http" && ["127.0.0.1", "localhost"].contains(url.host() ?? "")
+            && url.path().range(of: #"^/spider/[^/]+/[^/]+/proxy/"#, options: .regularExpression) != nil
+    }
+
+    /// The config center a bundle's entry sends the viewer to ("手机扫码打开：http://127.0.0.1:52380/website"). The bundle
+    /// serves it from inside this app, so only this device can open it, and an iPhone only while the app is in front:
+    /// in Safari it stops as soon as iOS suspends the app (#311).
+    public static func configCenter(of video: Video, site: Site) -> URL? {
+        guard site.raw["catPawOpen"] != nil else { return nil }
+        let text = video.synopsis + "\n" + video.remarks
+        guard let range = text.range(of: #"http://(127\.0\.0\.1|localhost):[0-9]+(/[A-Za-z0-9._~%/?#&=+:@!$*,;-]*)?"#, options: .regularExpression),
+              let url = URL(string: String(text[range])), !isMediaProxy(url) else { return nil }
+        return url
+    }
+
+    /// A bundle's media proxy address as a cloud stream, when it answers the bytes asked for. HEVC that an MP4 tags
+    /// `hev1` then shows its picture instead of playing sound only (`CloudStreams.playableSampleEntries`).
+    /// A proxy whose drive refuses the link (an expired one, most often) makes the bundle forget its links (`forgetLinks`).
+    public static func proxiedMedia(_ url: URL, headers: [String: String]) async -> CloudStreams.Source? {
+        guard isMediaProxy(url) else { return nil }
+        let probe: RangeConnection
+        do { probe = try await RangeConnection.open(url, headers: headers, from: 0, through: 1, configuration: RangeConnection.configuration, counter: CloudCounter()) }
+        catch {
+            if case .http(let status)? = error as? TVError, refusals.contains(status) { await forgetLinks(behind: url) }
+            return nil
+        }
+        probe.close()
+        guard probe.last == 1, probe.length > 0 else { return nil }
+        return CloudStreams.Source(url: url, headers: headers, length: Int(probe.length), name: url.lastPathComponent)
+    }
+
+    /// A drive's answers to a link it no longer serves.
+    static let refusals: Set<Int> = [401, 403, 404, 410]
+    /// How long a bundle runs before the drive links it kept may have expired. Baidu's last about 8 hours; a bundle
+    /// younger than this isn't started again, so a drive refusing a fresh link (a deleted file, too many connections)
+    /// doesn't restart it each time.
+    static let staleLinksAfter: TimeInterval = 30 * 60
+
+    /// Starts the bundle behind `url` again when its drive refused the link the bundle gave. The 9280.kstore.vip bundle
+    /// (玩偶, 虎斑, 多多…) keeps the link of each file it played for as long as it runs, without an expiry, so once Baidu's
+    /// expired (`31360 expire time out error`) every play of that file answered the dead link at once, and Continue
+    /// Watching couldn't open the episode again until the app quit (#2135). Started again, the bundle forgets them: the
+    /// episode's next open gets a fresh link.
+    static func forgetLinks(behind url: URL) async {
+        #if os(macOS)
+        let restarted = await LocalJarHost.shared.restartCatPawOpen(behind: url, olderThan: staleLinksAfter)
+        #elseif os(iOS) || os(tvOS)
+        let restarted = await EmbeddedNodeHost.shared.restart(behind: url, olderThan: staleLinksAfter)
+        #else
+        let restarted = false
+        #endif
+        if restarted { Diagnostics.shared.record(.warning, "player", "catpaw drive refused the bundle's link; bundle started again to forget its saved links") }
+    }
+
+    /// A drive link in place of an expired one, for a stream the app fetches itself (`directMedia`). The bundle's proxy
+    /// address carries the link it gave, so asking again gives the same one: when that is refused, the bundle starts
+    /// again (`forgetLinks`) and the episode's next open gets a fresh link.
+    public static func renewedDirectMedia(_ proxied: CloudStreams.Source) async -> CloudStreams.Source? {
+        if let direct = await directMedia(proxied) { return direct }
+        await forgetLinks(behind: proxied.url)
+        return nil
+    }
+
+    /// The drive file behind a bundle's media proxy, for the app to fetch itself: then Node only signs in and resolves
+    /// the link, and the bytes of a 4K file never pass through it. Relaying them through the bundle filled the heap of
+    /// the phone's Node until it stopped (#530). Nil when the proxy doesn't reveal its link, or the link doesn't answer
+    /// with the same length and first bytes as the proxy: such a bundle strips a disguise or changes the file.
+    public static func directMedia(_ proxied: CloudStreams.Source) async -> CloudStreams.Source? {
+        guard let link = revealedLink(proxied.url) else { return nil }
+        return await sameFile(proxied, at: link.url, headers: link.headers, session: CloudByteStream.session)
+    }
+
+    /// The drive link and its headers a media proxy address carries. The 9280.kstore.vip bundle (its 4K drive sites:
+    /// 玩偶, 多多, 虎斑, 观影…) adds them to each `/proxy/<drive>/<session>` address as `pst`, base64url JSON
+    /// `{"url": …, "headers": {…}}`, so its proxy can resume a session it has forgotten.
+    static func revealedLink(_ url: URL) -> (url: URL, headers: [String: String])? {
+        guard isMediaProxy(url),
+              let value = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "pst" })?.value
+        else { return nil }
+        var base64 = value.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        base64 += String(repeating: "=", count: (4 - base64.count % 4) % 4)
+        guard let data = Data(base64Encoded: base64),
+              let fields = try? JSONDecoder().decode([String: JSONValue].self, from: data),
+              let address = fields["url"]?.string, let link = URL(string: address), ["http", "https"].contains(link.scheme ?? "")
+        else { return nil }
+        var headers: [String: String] = [:]
+        if case .object(let values)? = fields["headers"] { for (name, value) in values { headers[name] = value.string } }
+        return (link, headers)
+    }
+
+    /// `proxied` as `link` serves it, when both answer the same first bytes of a file of the same length.
+    static func sameFile(_ proxied: CloudStreams.Source, at link: URL, headers: [String: String], session: URLSession) async -> CloudStreams.Source? {
+        async let direct = head(link, headers: headers, session: session)
+        async let relayed = head(proxied.url, headers: proxied.headers, session: session)
+        guard let direct = await direct, let relayed = await relayed, direct.length == proxied.length, direct.bytes == relayed.bytes else {
+            Diagnostics.shared.record(.info, "player", "catpaw link host=\(link.host() ?? "-") differs from its proxy; streaming through the bundle")
+            return nil
+        }
+        return CloudStreams.Source(url: link, headers: headers, length: direct.length, name: proxied.name)
+    }
+
+    /// The first 16 bytes at `url` and the length of the file, from its answer to a range request.
+    private static func head(_ url: URL, headers: [String: String], session: URLSession) async -> (bytes: Data, length: Int)? {
+        var request = URLRequest(url: url)
+        headers.forEach { request.setValue($1, forHTTPHeaderField: $0) }
+        request.setValue("bytes=0-15", forHTTPHeaderField: "Range")
+        request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+        guard let (data, response) = try? await session.data(for: request), let http = response as? HTTPURLResponse, http.statusCode == 206,
+              let range = http.value(forHTTPHeaderField: "Content-Range")?.firstMatch(of: /^bytes 0-(\d+)\/(\d+)$/),
+              let length = Int(range.2), length > 0, !data.isEmpty else { return nil }
+        return (data.prefix(16), length)
+    }
+
+    /// A bundle's media proxy stream at the port the bundle listens on now, after iOS took back the suspended app's
+    /// sockets (`EmbeddedNodeHost.relocate`, #485); nil when it hasn't moved. The Mac's Node is never suspended.
+    public static func relocated(_ source: CloudStreams.Source) async -> CloudStreams.Source? {
+        #if os(iOS) || os(tvOS)
+        guard let url = await EmbeddedNodeHost.shared.relocate(source.url) else { return nil }
+        return CloudStreams.Source(url: url, headers: source.headers, length: source.length, name: source.name)
+        #else
+        return nil
+        #endif
+    }
+
+    /// The bundle's video sources, each a type 3 source on the bundle with its `/spider/…` path in `catPawOpen`.
+    static func subscription(bundle: URL, origin: URL, http: HTTPClient) async throws -> Subscription {
+        #if os(macOS) || os(iOS) || os(tvOS)
+        let host = Site(key: "catpaw_config", name: "CatPawOpen", type: 3, api: bundle.absoluteString, raw: ["catPawOpen": .string("")])
+        #if os(macOS)
+        let config = try await LocalJarHost.shared.request(site: host, jarURL: bundle, params: ["catConfig": "1"], http: http, scriptOrigin: origin)
+        #else
+        let config = try await EmbeddedNodeHost.shared.request(site: host, bundleURL: bundle, params: ["catConfig": "1"], http: http, origin: origin)
+        #endif
+        let sites = (config["video"]?.object?["sites"]?.array ?? []).compactMap { entry -> JSONValue? in
+            guard var fields = entry.object, fields["type"]?.int == 3, let path = fields["api"]?.string, path.hasPrefix("/spider/") else { return nil }
+            fields["api"] = .string(bundle.absoluteString)
+            fields["catPawOpen"] = .string(path)
+            return .object(fields)
+        }
+        guard !sites.isEmpty else { throw TVError.unsupported(L10n.text("This CatPawOpen bundle lists no video sources.")) }
+        return try Subscription.parse(JSONEncoder().encode(["sites": JSONValue.array(sites)]), origin: origin)
+        #else
+        throw TVError.unsupported(L10n.text("This device can't run CatPawOpen sources."))
+        #endif
+    }
+}
+
+/// A drive sign-in that a CatPawOpen bundle's config center runs itself, with its own QR code. When a bundle says a
+/// drive has no sign-in ("还没有配置夸克 Cookie，请先去配置中心登录夸克"), the app runs this, the bundle's own sign-in,
+/// not the app's: the app's sign-ins from Settings already reach the bundle (Runtime/NodeHost `shareAccounts`).
+/// wexfnw bundles also play UC for accounts without premium through UC's TV app, whose token only their code gives
+/// ("非高会需要配置 UC TV Token，请到配置中心扫码获取"), and it is approved in the UC Browser app.
+public struct CatPawSignIn: Sendable {
+    public enum Status: Sendable { case waiting, done, expired, failed }
+    public let client: CatalogClient
+    /// The bundle's name for the sign-in: `quark`, `ucCookie`, `ucToken`, `baidu`, `pan115`, `pan189` or `guangya`.
+    public let provider: String
+    public private(set) var task = ""
+    public private(set) var status = Status.waiting
+    /// The bundle's own words for the step (Chinese).
+    public private(set) var message = ""
+    /// The code as the bundle drew it, and what it says: the address that approves the sign-in.
+    public private(set) var image: Data?
+    public private(set) var link: URL?
+
+    /// The sign-in a bundle's error asks for, or nil. Only messages that send the viewer to the config center count
+    /// ("请先去配置中心登录百度网盘"), or that ask for the drive's cookie again (the catpaw.douer.me bundle's "夸克登录状态失效，
+    /// 请重新配置 Cookie", #651, and "请先在配置中填入115 Cookie", #1075), not a drive's other failures ("百度网盘分享已失效").
+    public static func provider(for message: String) -> String? {
+        if message.range(of: "UC TV Token", options: .caseInsensitive) != nil { return "ucToken" }
+        guard message.contains("配置中心")
+                || message.range(of: #"配置\s*\S{0,8}\s*cookie"#, options: [.regularExpression, .caseInsensitive]) != nil else { return nil }
+        let drives: [(name: String, provider: String)] = [
+            ("夸克", "quark"), ("百度", "baidu"), ("115", "pan115"), ("天翼", "pan189"), ("光鸭", "guangya"), ("UC", "ucCookie"),
+        ]
+        return drives.first { message.range(of: $0.name, options: .caseInsensitive) != nil }?.provider
+    }
+
+    /// The bundle has no sign-in of its own: the catpaw.douer.me bundle answers its address with HTTP 404 and takes the
+    /// app's sign-ins instead (Runtime/NodeHost `shareAccounts`), so the app's own sign-in for the drive runs (#651).
+    public static func lacksOwnSignIn(_ error: Error) -> Bool {
+        error.localizedDescription.contains("(HTTP 404)")
+    }
+
+    /// The drive's name, for the sign-in's title.
+    public var driveName: String { Self.driveName(provider) }
+    public static func driveName(_ provider: String) -> String {
+        switch provider {
+        case "quark": L10n.text("Quark")
+        case "ucCookie": "UC"
+        case "ucToken": L10n.text("UC TV Token")
+        case "baidu": L10n.text("Baidu Netdisk")
+        case "pan115": L10n.text("115 Cloud")
+        case "pan189": L10n.text("Tianyi Cloud")
+        case "guangya": L10n.text("Guangya Cloud")
+        default: provider
+        }
+    }
+
+    public static func start(_ provider: String, client: CatalogClient) async throws -> CatPawSignIn {
+        var signIn = CatPawSignIn(client: client, provider: provider)
+        let answer = try await signIn.send("start")
+        signIn.task = answer["taskId"]?.string ?? ""
+        let picture = answer["qrImage"]?.string ?? ""
+        if let comma = picture.firstIndex(of: ","), picture.hasPrefix("data:image") { signIn.image = Data(base64Encoded: String(picture[picture.index(after: comma)...])) }
+        signIn.link = (answer["qrUrl"]?.string).flatMap { $0.isEmpty ? nil : URL(string: $0) } ?? signIn.image.flatMap(Self.decode)
+        guard !signIn.task.isEmpty, signIn.image != nil || signIn.link != nil else {
+            throw TVError.unsupported(answer["msg"]?.string ?? L10n.text("The plugin returned no content. Try another source."))
+        }
+        return signIn
+    }
+
+    /// Asks the bundle whether the code was approved yet.
+    public mutating func poll() async throws {
+        let answer = try await send("poll")
+        message = answer["msg"]?.string ?? ""
+        switch answer["status"]?.string {
+        case "success": status = .done
+        case "expired": status = .expired
+        case "waiting" where answer["code"]?.int == 0: status = .waiting
+        default: status = .failed
+        }
+    }
+
+    public func cancel() async { _ = try? await send("cancel") }
+
+    private func send(_ step: String) async throws -> [String: JSONValue] {
+        try await client.catPawRequest(["catLogin": step, "provider": provider, "taskId": task])
+    }
+
+    static func decode(_ png: Data) -> URL? {
+        guard let image = CIImage(data: png),
+              let detector = CIDetector(ofType: CIDetectorTypeQRCode, context: nil, options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]) else { return nil }
+        let text = detector.features(in: image).compactMap { ($0 as? CIQRCodeFeature)?.messageString }.first
+        return text.flatMap(URL.init(string:))
+    }
+}
