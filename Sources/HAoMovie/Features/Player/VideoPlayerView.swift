@@ -376,9 +376,10 @@ struct VideoPlayerView: View {
 struct PlayerLayerView: UIViewRepresentable {
     var player: AVPlayer
 
-    private static var pipController: AVPictureInPictureController?
+    // 画中画控制器只在主线程上创建和使用，标 @MainActor 隔离共享状态。
+    @MainActor private static var pipController: AVPictureInPictureController?
 
-    static func togglePiP() {
+    @MainActor static func togglePiP() {
         pipController?.stopPictureInPicture()
         if pipController?.isPictureInPictureActive == false {
             pipController?.startPictureInPicture()
@@ -408,6 +409,8 @@ struct PlayerLayerView: UIViewRepresentable {
 
 /// 系统音量：MPVolumeView 必须挂在视图层级里才生效，
 /// 用一个隐藏的 MPVolumeView 承载 slider，再调它的值（iOS 没有公开的设置接口）。
+/// slider 只在主线程上读写，整个 helper 标 @MainActor 隔离共享状态。
+@MainActor
 enum VolumeHelper {
     static var slider: UISlider?
 
@@ -426,8 +429,11 @@ struct HiddenVolumeView: UIViewRepresentable {
         let view = MPVolumeView(frame: .zero)
         view.showsVolumeSlider = true
         view.alpha = 0.01
-        // 下一 runloop 再取 slider（子视图此时才建好）
-        DispatchQueue.main.async {
+        // 下一 runloop 再取 slider（子视图此时才建好）；
+        // 用 @MainActor Task 而不用 DispatchQueue.main.async，
+        // 这样才能访问 @MainActor 的 VolumeHelper.slider，也不会在
+        // @Sendable 闭包里捕获非 Sendable 的 MPVolumeView。
+        Task { @MainActor in
             VolumeHelper.slider = view.subviews.compactMap { $0 as? UISlider }.first
         }
         return view

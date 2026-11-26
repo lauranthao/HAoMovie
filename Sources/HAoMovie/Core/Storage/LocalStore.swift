@@ -2,7 +2,9 @@ import Foundation
 
 /// 本地键值存储：UserDefaults + JSON 编解码。历史、收藏、订阅、播放进度都只存本机。
 enum LocalStore {
-    private static let defaults = UserDefaults.standard
+    // UserDefaults 不是 Sendable，不能以 static let 存共享实例；
+    // 用计算属性每次取标准实例（UserDefaults.standard 本身线程安全）。
+    private static var defaults: UserDefaults { .standard }
 
     static func save<T: Encodable>(_ value: T, key: String) {
         guard let data = try? JSONEncoder().encode(value) else { return }
