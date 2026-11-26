@@ -3,6 +3,17 @@ import Foundation
 import FoundationNetworking
 #endif
 
+extension String.Encoding {
+    /// GB18030（GBK 超集，TVBox 源站常用）。Swift 的 String.Encoding 没有内置成员，
+    /// 经 CoreFoundation 把 kCFStringEncodingGB_18030_2000 转成 NSStringEncoding。
+    static let gb18030: String.Encoding = {
+        let cfEncoding = CFStringConvertEncodingToNSStringEncoding(
+            CFStringEncoding(CFStringEncodings.GB_18030_2000.rawValue)
+        )
+        return String.Encoding(rawValue: cfEncoding)
+    }()
+}
+
 /// TVBox type 1 JSON 源的网络客户端。只支持 JSON 源（type 1/4）；jar 插件源不支持。
 /// 单源超时 10 秒；失败由调用方记入冷却（SubscriptionStore），不在此重试。
 enum TVBoxClient {
