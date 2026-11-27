@@ -6,9 +6,12 @@ import Foundation
 public enum MediaTypeHint {
     /// `learned` is read and written from player work on several threads, so
     /// it goes through a lock — a plain static var is shared mutable state
-    /// and Swift 6 refuses to compile it (Movie build #8).
+    /// and Swift 6 refuses to compile it (Movie build #8). The lock does the
+    /// real protection; `nonisolated(unsafe)` is only what the compiler
+    /// itself suggests for lock-guarded static state (build #9 still
+    /// rejected the bare var, lock or no lock).
     private static let lock = NSLock()
-    private static var learned: [String: String] = [:]
+    private nonisolated(unsafe) static var learned: [String: String] = [:]
 
     public static func mimeType(for url: URL) -> String? {
         lock.lock()

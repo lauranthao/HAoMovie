@@ -62,6 +62,8 @@ import IOKit.pwr_mgt
     private var introNoticeUntil: Date?
     /// How long the intro's notice stays.
     private static let introNoticeLength: TimeInterval = 6
+    /// The episode's chapters (Bilibili's 分段章节), for the player's Chapters menu and Apple TV's chapter markers.
+    private(set) var chapters: [PlaybackChapter] = []
 
     /// Skips the source's credits playing now: to their end, or for ending credits that run out the video, to the end.
     func skipSourceSegment() {
@@ -1375,7 +1377,7 @@ import IOKit.pwr_mgt
         skipScope = nil; skipSettings = EpisodeSkipSettings(); skipPass = EpisodeSkipPass()
         skipNotice = nil; introNoticeUntil = nil
         position = 0; duration = 0; editingSkip = false; resumeAfterEditing = false; seekingSegment = false
-        sourceSkips = []; skipOffer = nil; skippedSource = []
+        sourceSkips = []; skipOffer = nil; skippedSource = []; chapters = []
         onPlaybackEnded = nil; onUnplayableFile = nil
         if player.currentItem != nil {
             let seconds = player.currentTime().seconds
@@ -1437,7 +1439,7 @@ import IOKit.pwr_mgt
         if player.rate != 0, boost == nil, player.rate != player.defaultRate { player.rate = player.defaultRate }
         skipPass = EpisodeSkipPass(); seekingSegment = false
         skipNotice = nil; introNoticeUntil = nil
-        sourceSkips = channel.skips; skipOffer = nil; skippedSource = []
+        sourceSkips = channel.skips; skipOffer = nil; skippedSource = []; chapters = []
         position = 0; duration = 0
         upcomingAttempted = false
     }

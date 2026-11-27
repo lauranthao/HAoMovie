@@ -8,7 +8,7 @@ public enum L10n {
 
     /// One of `supportedLanguages`: the match for `language`, or the language the app's UI is shown in.
     public static func resolvedLanguage(_ language: String? = nil) -> String {
-        guard let language else { return Bundle.module.preferredLocalizations.first ?? "en" }
+        guard let language else { return Bundle.main.preferredLocalizations.first ?? "en" }
         let match = Bundle.preferredLocalizations(from: supportedLanguages, forPreferences: [language]).first ?? "en"
         return supportedLanguages.contains(match) ? match : "en"
     }
@@ -17,8 +17,8 @@ public enum L10n {
         let bundle: Bundle
         if let language {
             let selected = resolvedLanguage(language)
-            bundle = Bundle.module.path(forResource: selected, ofType: "lproj").flatMap(Bundle.init(path:)) ?? Bundle.module
-        } else { bundle = Bundle.module }
+            bundle = Bundle.main.path(forResource: selected, ofType: "lproj").flatMap(Bundle.init(path:)) ?? Bundle.main
+        } else { bundle = Bundle.main }
         let format = bundle.localizedString(forKey: key, value: key, table: "Localizable")
         guard !arguments.isEmpty else { return format }
         return String(format: format, locale: Locale(identifier: language ?? bundle.preferredLocalizations.first ?? "en"), arguments: arguments)
