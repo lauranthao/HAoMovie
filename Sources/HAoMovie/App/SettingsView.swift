@@ -398,11 +398,6 @@ struct FormSettingsView: View {
             Section {
                 FormLink(symbol: AppSection.home.icon, tint: Brand.cyan, title: L10n.text("Watch Now")) { WatchNowSettingsView() }
                     .settingsAnchor(.watchNow)
-                if AppIcons.isAvailable {
-                    FormLink(symbol: "paintpalette.fill", tint: .pink, title: L10n.text("App Icon"), value: AppIcons.shared.title) { AppIconSettingsView() }
-                        .accessibilityIdentifier("settings.appIcon")
-                        .settingsAnchor(.appIcon)
-                }
                 FormLink(symbol: "swatchpalette.fill", tint: .purple, title: L10n.text("Color Theme"), value: ColorThemes.shared.current.title) {
                     ColorThemeSettingsView()
                 }
@@ -431,11 +426,6 @@ struct FormSettingsView: View {
             Section {
                 FormLink(symbol: AppSection.home.icon, tint: Brand.cyan, title: L10n.text("Watch Now")) { WatchNowSettingsView() }
                     .settingsAnchor(.watchNow)
-                if AppIcons.isAvailable {
-                    FormLink(symbol: "paintpalette.fill", tint: .pink, title: L10n.text("App Icon"), value: AppIcons.shared.title) { AppIconSettingsView() }
-                        .accessibilityIdentifier("settings.appIcon")
-                        .settingsAnchor(.appIcon)
-                }
                 FormLink(symbol: "swatchpalette.fill", tint: .purple, title: L10n.text("Color Theme"), value: ColorThemes.shared.current.title) {
                     ColorThemeSettingsView()
                 }
@@ -738,7 +728,6 @@ private enum SettingsSearchTarget: Hashable, Sendable {
     case addSubscription
     case profiles
     case watchNow
-    case appIcon
     case colorTheme
     case playback
     case playURL
@@ -892,10 +881,6 @@ private extension FormSettingsView {
 
         add(.watchNow, title: L10n.text("Watch Now"), section: secGeneral,
             keywords: ["home", "watch now", "recommendations", "首页", "推荐", "立即观看"])
-        if AppIcons.isAvailable {
-            add(.appIcon, title: L10n.text("App Icon"), section: secGeneral, subtitle: AppIcons.shared.title,
-                keywords: ["icon", "logo", "图标"])
-        }
         add(.colorTheme, title: L10n.text("Color Theme"), section: secGeneral, subtitle: ColorThemes.shared.current.title,
             keywords: ["color", "theme", "appearance", "dark", "主题", "配色", "外观"])
 
@@ -1931,7 +1916,6 @@ struct TVSettingsView: View {
             }
             TVSettingsSection {
                 TVSettingsLink(title: L10n.text("Watch Now")) { WatchNowSettingsView() }
-                TVSettingsLink(title: L10n.text("App Icon"), value: AppIcons.shared.title) { AppIconSettingsView() }
                 TVSettingsLink(title: L10n.text("Color Theme"), value: ColorThemes.shared.current.title) { ColorThemeSettingsView() }
             }
             TVSettingsSection(title: L10n.text("Playback"), footer: playbackFooter) {
