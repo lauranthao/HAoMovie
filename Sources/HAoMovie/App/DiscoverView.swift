@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Discover: Douban's hot lists as poster grids — hot movies, hot series,
-/// hot variety. No subscription needed to browse: the lists are public.
+/// hot variety, now showing, Top 250. No subscription needed to browse: the
+/// lists are public.
 /// Tapping a title searches it across the user's own sources, so it plays
 /// where the subscription has it; without a subscription the search page
 /// says so.
@@ -73,7 +74,7 @@ struct DiscoverView: View {
     }
 }
 
-/// Douban's three hot lists, loaded in parallel. Loaded lists stay while
+/// Douban's five hot lists, loaded in parallel. Loaded lists stay while
 /// a refresh runs, so the page does not flash empty.
 @MainActor @Observable
 final class DiscoverModel {

@@ -14,12 +14,16 @@ enum DoubanCatalog {
         case movies = "movie_hot_gaia"
         case television = "tv_hot"
         case variety = "show_hot"
+        case showing = "movie_showing"
+        case top250 = "movie_top250"
 
         var title: String {
             switch self {
             case .movies: L10n.text("Hot Movies")
             case .television: L10n.text("Hot TV Shows")
             case .variety: L10n.text("Hot Variety Shows")
+            case .showing: L10n.text("Now Showing")
+            case .top250: L10n.text("Top 250")
             }
         }
     }
