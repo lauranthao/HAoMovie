@@ -30,9 +30,9 @@ struct PhoneTabs: Equatable {
         horizontal == .regular && vertical == .regular ? wideBarSlots : barSlots
     }
     // HAo Movie's tab order: home, live, search, sites on the bar; the rest in More.
-    static let standard = PhoneTabs(bar: [.home, .live, .search, .sites], more: [.favorites, .history, .downloads, .settings])
+    static let standard = PhoneTabs(bar: [.home, .live, .search, .sites], more: [.files, .favorites, .history, .downloads, .settings])
     /// The iPad sidebar's order until the viewer arranges it.
-    static let sidebarStandard: [AppSection] = [.home, .live, .search, .sites, .favorites, .history, .downloads, .settings]
+    static let sidebarStandard: [AppSection] = [.home, .live, .search, .sites, .files, .favorites, .history, .downloads, .settings]
     var bar: [AppSection]
     var more: [AppSection]
 
@@ -83,6 +83,7 @@ extension AppSection {
         case .live: Color(red: 1.0, green: 0.45, blue: 0.32)
         case .search: Color(red: 0.36, green: 0.60, blue: 1.0)
         case .sites: Color(red: 0.60, green: 0.46, blue: 1.0)
+        case .files: Color(red: 0.25, green: 0.62, blue: 0.98)
         case .history: Brand.amber
         case .favorites: Brand.rose
         case .downloads: Brand.teal

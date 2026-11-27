@@ -11,6 +11,12 @@
 		671D94FAA5F26AA481AE8A41 = {isa = PBXBuildFile; fileRef = 7363ED8ABC74F11F185D8CCF; };
 		A22B3086F6522C38A8B3A495 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogPlaybackActions.swift; sourceTree = "<group>"; };
 		7B4D288740175B995BE52E78 = {isa = PBXBuildFile; fileRef = A22B3086F6522C38A8B3A495; };
+		76EAD65FB34C1B1C960712E4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudDriveView.swift; sourceTree = "<group>"; };
+		8298BF2FE789457DE9421959 = {isa = PBXBuildFile; fileRef = 76EAD65FB34C1B1C960712E4; };
+		878E9E63EC9164A4CAE110FF = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudFilesView.swift; sourceTree = "<group>"; };
+		BCFFD643C2B22CAFD8622F75 = {isa = PBXBuildFile; fileRef = 878E9E63EC9164A4CAE110FF; };
+		C58BEC1B9B72DE57743B77E4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudQRLoginView.swift; sourceTree = "<group>"; };
+		048EF0C3B94425DB9CFF844B = {isa = PBXBuildFile; fileRef = C58BEC1B9B72DE57743B77E4; };
 		046BFB932D41F6F3E2918BF1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorThemes.swift; sourceTree = "<group>"; };
 		835EE4C9703CE332E3A6E50B = {isa = PBXBuildFile; fileRef = 046BFB932D41F6F3E2918BF1; };
 		6D685232F21139FC9FD83162 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigCenterView.swift; sourceTree = "<group>"; };
@@ -115,6 +121,10 @@
 		EDACFDC6E60CAB1D20CA422F = {isa = PBXBuildFile; fileRef = 857F1C1DE35452B87080CED7; };
 		80B0B97E1D006FAA530EA390 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchNowPhone.swift; sourceTree = "<group>"; };
 		A45487618DFDD6BFD55375F4 = {isa = PBXBuildFile; fileRef = 80B0B97E1D006FAA530EA390; };
+		4E3D8F5FCFF6B3F3A4D868CB = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSignInView.swift; sourceTree = "<group>"; };
+		A35FD14D86E46B354906B76D = {isa = PBXBuildFile; fileRef = 4E3D8F5FCFF6B3F3A4D868CB; };
+		50E6DFF74F0023239A433B40 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XunleiSignInView.swift; sourceTree = "<group>"; };
+		CF275A48DD7AE1AF44234E40 = {isa = PBXBuildFile; fileRef = 50E6DFF74F0023239A433B40; };
 		866A07B9A01ED1D12225C891 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AList.swift; sourceTree = "<group>"; };
 		FB32D257E2D8F461FC2557EA = {isa = PBXBuildFile; fileRef = 866A07B9A01ED1D12225C891; };
 		499FE59E8B21079958C7079A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdSkip.swift; sourceTree = "<group>"; };
@@ -147,6 +157,8 @@
 		CC47E4E0745637AF64531D98 = {isa = PBXBuildFile; fileRef = 416C73775399080B5BC2AB74; };
 		DA27A77AEADD4AC4DAEC2941 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudDriveAccounts.swift; sourceTree = "<group>"; };
 		B07205D4EA93CA4D0C723229 = {isa = PBXBuildFile; fileRef = DA27A77AEADD4AC4DAEC2941; };
+		869D5304699456499F416DA6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudDriveQRLogin.swift; sourceTree = "<group>"; };
+		51651C5B14717BB7369F9383 = {isa = PBXBuildFile; fileRef = 869D5304699456499F416DA6; };
 		F9F53C2C2224347EDD10586F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudFiles.swift; sourceTree = "<group>"; };
 		71F4F93831EFA10F6D4FCE70 = {isa = PBXBuildFile; fileRef = F9F53C2C2224347EDD10586F; };
 		D009E0075FFA310C88C85288 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudStreams.swift; sourceTree = "<group>"; };
@@ -183,6 +195,8 @@
 		FFA430CE744B4541F5AF11BA = {isa = PBXBuildFile; fileRef = 69E36285981C7EC2558B7346; };
 		F73313C6AD989FC01403A6F7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Downloads.swift; sourceTree = "<group>"; };
 		FAE36BB4D8D07B6C28172B44 = {isa = PBXBuildFile; fileRef = F73313C6AD989FC01403A6F7; };
+		BB3ED907832910D85EC891B5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveAppLink.swift; sourceTree = "<group>"; };
+		A7A2E138CECEB7CC72A3B46B = {isa = PBXBuildFile; fileRef = BB3ED907832910D85EC891B5; };
 		8670CE1971571F189FAA3EB9 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddedJarHost.swift; sourceTree = "<group>"; };
 		4D6C950F5F00D022E28E8B0D = {isa = PBXBuildFile; fileRef = 8670CE1971571F189FAA3EB9; };
 		64A1EC59FB1A532E3A32D002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddedNodeHost.swift; sourceTree = "<group>"; };
@@ -415,6 +429,8 @@
 		EC6AA6190736F5A66831AA8E = {isa = PBXBuildFile; fileRef = 5351B6BFB8E9C7E7E4A873E3; };
 		70F56EEA80F90D34666254B0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDAV.swift; sourceTree = "<group>"; };
 		1FB6ED89EE469833ADEE4DB3 = {isa = PBXBuildFile; fileRef = 70F56EEA80F90D34666254B0; };
+		90164AE093113DDF88CE387F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSignIn.swift; sourceTree = "<group>"; };
+		374F60CCDA91802B34ABE201 = {isa = PBXBuildFile; fileRef = 90164AE093113DDF88CE387F; };
 		BEA6E23906C84AA77F4729AA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XunleiSignIn.swift; sourceTree = "<group>"; };
 		AEE1BE8AA4A9620FBC40E43B = {isa = PBXBuildFile; fileRef = BEA6E23906C84AA77F4729AA; };
 		770C5B730A8FBE3C009C5372 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -443,6 +459,9 @@
 				5DF866DE71ACF7F4B823F81A,
 				7363ED8ABC74F11F185D8CCF,
 				A22B3086F6522C38A8B3A495,
+				76EAD65FB34C1B1C960712E4,
+				878E9E63EC9164A4CAE110FF,
+				C58BEC1B9B72DE57743B77E4,
 				046BFB932D41F6F3E2918BF1,
 				6D685232F21139FC9FD83162,
 				A034B457A8C800CA5A6A6B92,
@@ -495,6 +514,8 @@
 				06A299EF3641C2D4A84932A4,
 				857F1C1DE35452B87080CED7,
 				80B0B97E1D006FAA530EA390,
+				4E3D8F5FCFF6B3F3A4D868CB,
+				50E6DFF74F0023239A433B40,
 			);
 			name = App;
 			path = App;
@@ -519,6 +540,7 @@
 				97D77DF5C9BFE04EFB13F5EC,
 				416C73775399080B5BC2AB74,
 				DA27A77AEADD4AC4DAEC2941,
+				869D5304699456499F416DA6,
 				F9F53C2C2224347EDD10586F,
 				D009E0075FFA310C88C85288,
 				D7B6DB849A54C5438DDF0697,
@@ -537,6 +559,7 @@
 				36BAC337E7557B141B0DAA87,
 				69E36285981C7EC2558B7346,
 				F73313C6AD989FC01403A6F7,
+				BB3ED907832910D85EC891B5,
 				8670CE1971571F189FAA3EB9,
 				64A1EC59FB1A532E3A32D002,
 				85AACBB08B8C647D39B3580A,
@@ -653,6 +676,7 @@
 				71BBB7A16DE7900B865B3F24,
 				5351B6BFB8E9C7E7E4A873E3,
 				70F56EEA80F90D34666254B0,
+				90164AE093113DDF88CE387F,
 				BEA6E23906C84AA77F4729AA,
 			);
 			name = TVCore;
@@ -690,6 +714,9 @@
 				FF24CDFDE92B86D9971DAE03,
 				671D94FAA5F26AA481AE8A41,
 				7B4D288740175B995BE52E78,
+				8298BF2FE789457DE9421959,
+				BCFFD643C2B22CAFD8622F75,
+				048EF0C3B94425DB9CFF844B,
 				835EE4C9703CE332E3A6E50B,
 				D4840B6F9DA480A9FFAB2BEC,
 				513EABECC0A55883519C7274,
@@ -742,6 +769,8 @@
 				520714BB5F06BD1E6963D44B,
 				EDACFDC6E60CAB1D20CA422F,
 				A45487618DFDD6BFD55375F4,
+				A35FD14D86E46B354906B76D,
+				CF275A48DD7AE1AF44234E40,
 				FB32D257E2D8F461FC2557EA,
 				3DA41A45BA2CFDDF8F2E560B,
 				D24F8617B5B192BF7EA97E91,
@@ -758,6 +787,7 @@
 				E4BDBB183A1059A06673EA49,
 				CC47E4E0745637AF64531D98,
 				B07205D4EA93CA4D0C723229,
+				51651C5B14717BB7369F9383,
 				71F4F93831EFA10F6D4FCE70,
 				CAE5B94D675F1F8945EE22D2,
 				566B360C74F724C505EB6082,
@@ -776,6 +806,7 @@
 				7F623BD56C4DB1BFB1AB6007,
 				FFA430CE744B4541F5AF11BA,
 				FAE36BB4D8D07B6C28172B44,
+				A7A2E138CECEB7CC72A3B46B,
 				4D6C950F5F00D022E28E8B0D,
 				9FA47CC83AAEF26DAB6DA5AD,
 				3FB95EEC8025BC98056119BC,
@@ -892,6 +923,7 @@
 				98DC7EDF972C1A2626B0F0E7,
 				EC6AA6190736F5A66831AA8E,
 				1FB6ED89EE469833ADEE4DB3,
+				374F60CCDA91802B34ABE201,
 				AEE1BE8AA4A9620FBC40E43B,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1006,7 +1038,7 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_TESTABILITY = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -1068,7 +1100,7 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				GCC_OPTIMIZATION_LEVEL = s;

@@ -103,12 +103,14 @@ public enum FavoriteItem: Codable, Hashable, Sendable, Identifiable {
     case live(Channel)
     case video(FavoriteVideo)
     case episode(FavoriteEpisode)
+    case cloud(FavoriteCloudFile)
 
     public var kind: FavoriteKind {
         switch self {
         case .live: .live
         case .video: .video
         case .episode: .episode
+        case .cloud: .cloud
         }
     }
 
@@ -122,6 +124,8 @@ public enum FavoriteItem: Codable, Hashable, Sendable, Identifiable {
         case .episode(let episode):
             let videoKey = EpisodeSkipSettings.scope(origin: episode.video.origin, source: episode.video.sourceKey, video: episode.video.videoID)
             return "episode|" + videoKey + "|" + episode.episodeFlag + "|" + episode.episodeName
+        case .cloud(let file):
+            return "cloud|" + file.driveKey + "|" + file.fileID
         }
     }
 

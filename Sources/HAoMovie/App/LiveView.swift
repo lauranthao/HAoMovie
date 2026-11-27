@@ -557,6 +557,7 @@ struct FavoritesView: View {
                         if shows(.live) { liveSection }
                         if shows(.video) { filmSection }
                         if shows(.episode) { episodeSection }
+                        if shows(.cloud) { cloudSection }
                     }
                     .pageContainer()
                 }
@@ -587,7 +588,8 @@ struct FavoritesView: View {
         case .live: L10n.text("Live TV")
         case .video: L10n.text("Films")
         case .episode: L10n.text("Saved Episodes")
-        // FavoriteKind still declares .music/.cloud (TVCore/Favorites.swift), but no favorite can be one any more.
+        case .cloud: L10n.text("Cloud Files")
+        // FavoriteKind still declares .music, but no favorite can be one in this app.
         default: L10n.text("Favorites")
         }
     }
@@ -627,6 +629,43 @@ struct FavoritesView: View {
             }
         }
         .tvFocusSection()
+    }
+
+    private var cloudSection: some View {
+        VStack(alignment: .leading, spacing: Layout.headerSpacing) {
+            SectionHeader(title: L10n.text("Cloud Files"))
+            LazyVStack(alignment: .leading, spacing: Layout.cardSpacing) {
+                ForEach(store.favorites.items(.cloud)) { item in
+                    if case .cloud(let file) = item { FavoriteCloudRow(file: file) }
+                }
+            }
+        }
+        .tvFocusSection()
+    }
+}
+
+/// A saved cloud file, using the same panel as a channel card and the file row's label.
+private struct FavoriteCloudRow: View {
+    @Environment(Store.self) private var store
+    let file: FavoriteCloudFile
+
+    var body: some View {
+        let cloud = CloudFile(id: file.fileID, name: file.fileName, isFolder: false, size: file.size)
+        let driveName = CloudFiles.drive(key: file.driveKey)?.name ?? file.driveKey
+        HStack(spacing: 10) {
+            Button { store.play(file) } label: {
+                FileRowLabel(symbol: cloud.symbol, tint: cloud.tint, title: file.fileName, subtitle: driveName)
+            }
+            .glassRow()
+            .favoriteMenu(.cloud(file), name: file.fileName)
+            #if !os(tvOS)
+            FavoriteHeartButton(item: .cloud(file), name: file.fileName)
+                .fixedSize()
+            #endif
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentPanel()
     }
 }
 

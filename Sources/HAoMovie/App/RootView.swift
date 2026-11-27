@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum AppSection: String, CaseIterable, Identifiable, Hashable {
-    case home = "Watch Now", live = "Live TV", search = "Global Search", sites = "Sources", favorites = "Favorites", history = "Playback History", downloads = "Downloads", settings = "Settings", more = "More"
+    case home = "Watch Now", live = "Live TV", search = "Global Search", sites = "Sources", files = "Cloud Files", favorites = "Favorites", history = "Playback History", downloads = "Downloads", settings = "Settings", more = "More"
     var id: String { rawValue }
     /// The raw values are also saved settings and QA arguments, so the offline cache keeps its old one.
     var title: String { self == .downloads ? L10n.text("Offline Cache") : L10n.text(rawValue) }
@@ -11,6 +11,7 @@ enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .search: "magnifyingglass"
         case .live: "dot.radiowaves.left.and.right"
         case .sites: "square.grid.2x2.fill"
+        case .files: "folder.fill"
         case .favorites: "heart.fill"
         case .downloads: "arrow.down.circle.fill"
         case .history: "clock.arrow.circlepath"
@@ -319,6 +320,7 @@ struct SectionPage: View {
         case .search: GlobalSearchView()
         case .live: LiveView()
         case .sites: SitesView()
+        case .files: CloudFilesView()
         case .favorites: FavoritesView()
         case .downloads: DownloadsView()
         case .history: PlaybackHistoryView()

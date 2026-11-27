@@ -88,6 +88,8 @@ import SwiftUI
     /// there tears the sheet down (#1618).
     var catalogSearchSheets: [UUID] = []
     var playbackCatalog: PlaybackCatalog?
+    /// The Cloud Files folder the playing file came from; its next file plays after it.
+    var filesFolder: CloudFilesFolder?
     var resolvingEpisode: Episode?
     var episodeError: String?
     var autoPlayNext: Bool {
@@ -249,7 +251,7 @@ import SwiftUI
         playing = nil
         cancelEpisodeSelection(); cancelResume()
         nextAheadTask?.task.cancel(); nextAheadTask = nil; nextAhead = nil
-        liveLineup = nil; liveGuide = nil; playbackCatalog = nil; watchPageScopes = []; episodeError = nil
+        liveLineup = nil; liveGuide = nil; playbackCatalog = nil; filesFolder = nil; watchPageScopes = []; episodeError = nil
         Profiles.shared.select(target)
         profile = Profiles.shared.current
         let library = Self.library(for: profile, base: baseDefaults)
@@ -702,7 +704,7 @@ import SwiftUI
     /// `isCurrent` says whether `channel` still plays: a video floating in Picture in Picture plays with no `playing`.
     func upcomingEpisode(after channel: Channel, isCurrent: (Channel) -> Bool) async -> Channel? {
         // Only while `channel` still plays: once the queue moves on, this was asked about the one before.
-        if channel.url.scheme == DownloadLibrary.scheme {
+        if CloudFiles.isFile(channel.url) || channel.url.scheme == DownloadLibrary.scheme {
             return autoPlayNext && isCurrent(channel) ? nextFile(after: channel) : nil
         }
         guard autoPlayNext, let catalog = catalog(for: channel), let next = nextEpisode(after: channel) else { return nil }
@@ -765,7 +767,7 @@ import SwiftUI
 
     /// The queued episode started playing by itself: it becomes the one playing, as if it had been chosen.
     func advance(to next: Channel, from channel: Channel) {
-        if next.url.scheme == DownloadLibrary.scheme, playing == channel { playing = next; return }
+        if CloudFiles.isFile(next.url) || next.url.scheme == DownloadLibrary.scheme, playing == channel { playing = next; return }
         guard playing == channel, let catalog = catalog(for: channel) else { return }
         cancelEpisodeSelection()
         remember(catalog.video, client: catalog.client, for: next)
@@ -864,6 +866,7 @@ import SwiftUI
     func resumeHistory(_ entry: PlaybackHistoryEntry) async {
         resumingHistoryID = entry.id
         defer { if resumingHistoryID == entry.id, !Task.isCancelled { resumingHistoryID = nil } }
+        if entry.context.sourceKey == CloudFiles.sourceKey { return resumeFile(entry) }
         guard let config = subscription, let client = historyClient(entry) else {
             error = L10n.text("This history source is no longer in the current subscription. Restore that subscription to continue.")
             return
@@ -1005,9 +1008,67 @@ extension Store {
         if channel.url.scheme == DownloadLibrary.scheme {
             return DownloadLibrary.shared.neighbor(of: channel.url, offset: offset).map(savedChannel)
         }
-        return nil
+        guard let context = channel.historyContext, context.sourceKey == CloudFiles.sourceKey, let folder = filesFolder,
+              folder.drive.key == context.episodeFlag, folder.id == context.videoID,
+              let index = folder.files.firstIndex(where: { $0.id == context.episodeID }),
+              folder.files.indices.contains(index + offset) else { return nil }
+        return CloudFiles.channel(folder.files[index + offset], in: folder.drive, folder: folder.id, folderName: folder.name, subtitles: folder.subtitles)
     }
 
+}
+
+// MARK: Cloud Files
+
+/// A Cloud Files folder being played through: its files of the kind chosen, in order.
+struct CloudFilesFolder {
+    let drive: CloudFilesDrive
+    let id: String
+    let name: String
+    let files: [CloudFile]
+    /// The folder's subtitle files and archives, offered beside each of its videos.
+    var subtitles: [ExternalSubtitle] = []
+}
+
+extension Store {
+    /// Plays a file from Cloud Files, where it was left if it was being watched; the folder's other
+    /// files follow it.
+    func playFile(_ file: CloudFile, in folder: CloudFilesFolder) {
+        let channel = CloudFiles.channel(file, in: folder.drive, folder: folder.id, folderName: folder.name, subtitles: folder.subtitles)
+        let saved = playbackHistory.entries.first { $0.id == channel.historyContext?.id && $0.context.episodeID == file.id && !$0.completed }
+        filesFolder = folder
+        playing = saved.map { CloudFiles.channel(file, in: folder.drive, folder: folder.id, folderName: folder.name, resumePosition: $0.resumePosition,
+                                                 subtitles: folder.subtitles) } ?? channel
+    }
+
+    /// Plays a saved cloud file: its folder is just that file, so nothing follows it.
+    func play(_ file: FavoriteCloudFile) {
+        guard let drive = CloudFiles.drive(key: file.driveKey) else {
+            error = L10n.text("This file's drive is no longer in Cloud Files.")
+            return
+        }
+        let cloud = CloudFile(id: file.fileID, name: file.fileName, isFolder: false, size: file.size)
+        playFile(cloud, in: CloudFilesFolder(drive: drive, id: file.folderID, name: file.folderName, files: [cloud]))
+    }
+
+    /// Continue Watching on a Cloud Files folder: the file plays at once, and the folder is listed
+    /// again meanwhile so the files after it still follow.
+    fileprivate func resumeFile(_ entry: PlaybackHistoryEntry) {
+        let context = entry.context
+        guard let drive = CloudFiles.drive(key: context.episodeFlag) else {
+            error = L10n.text("This file's drive is no longer in Cloud Files.")
+            return
+        }
+        filesFolder = nil
+        let channel = CloudFiles.channel(context, resumePosition: entry.resumePosition)
+        playing = channel
+        Task { [weak self] in
+            guard let files = try? await CloudFiles.list(drive, folder: context.videoID), let self, self.playing == channel else { return }
+            let kind = CloudFile.kind(of: context.episodeName)
+            self.filesFolder = CloudFilesFolder(drive: drive, id: context.videoID, name: context.videoName,
+                                                files: files.filter { $0.kind == kind && drive.plays($0) },
+                                                subtitles: CloudFiles.subtitles(files, in: drive))
+        }
+    }
 }
 
 struct PlaybackCatalog {

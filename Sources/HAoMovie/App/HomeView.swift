@@ -376,6 +376,12 @@ private struct HomeFavoriteCard: View {
             tvButton(name: episode.video.videoName) { store.play(episode) } label: {
                 media(poster(url: episode.video.poster, headers: episode.video.posterHeaders), title: episode.video.videoName, subtitle: episode.episodeName)
             }
+        case .cloud(let file):
+            let cloud = CloudFile(id: file.fileID, name: file.fileName, isFolder: false, size: file.size)
+            tvButton(name: file.fileName) { store.play(file) } label: {
+                FileRowLabel(symbol: cloud.symbol, tint: cloud.tint, title: file.fileName,
+                             subtitle: CloudFiles.drive(key: file.driveKey)?.name ?? file.driveKey)
+            }
         }
     }
 
@@ -394,6 +400,8 @@ private struct HomeFavoriteCard: View {
             videoCard(video)
         case .episode(let episode):
             episodeCard(episode)
+        case .cloud(let file):
+            cloudCard(file)
         }
     }
 
@@ -419,6 +427,24 @@ private struct HomeFavoriteCard: View {
             }
             .cardButton()
             FavoriteHeartButton(item: .episode(episode), name: episode.video.videoName)
+                .fixedSize()
+                .allowsHitTesting(drag?.active != true)
+        }
+        .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+        .contentPanel()
+    }
+
+    private func cloudCard(_ file: FavoriteCloudFile) -> some View {
+        let cloud = CloudFile(id: file.fileID, name: file.fileName, isFolder: false, size: file.size)
+        let driveName = CloudFiles.drive(key: file.driveKey)?.name ?? file.driveKey
+        return HStack(spacing: 10) {
+            Button {
+                if drag?.active != true { store.play(file) }
+            } label: {
+                FileRowLabel(symbol: cloud.symbol, tint: cloud.tint, title: file.fileName, subtitle: driveName)
+            }
+            .rowCardButton()
+            FavoriteHeartButton(item: .cloud(file), name: file.fileName)
                 .fixedSize()
                 .allowsHitTesting(drag?.active != true)
         }

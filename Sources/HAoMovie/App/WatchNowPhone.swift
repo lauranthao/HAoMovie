@@ -458,6 +458,11 @@ private struct WatchNowPhoneFavorite: View {
             plate(title: channel.name, detail: channel.displayGroup, action: { store.watchFavorite(channel) }) {
                 ChannelLogo(channel: channel, size: 64)
             }
+        case .cloud(let file):
+            let cloud = CloudFile(id: file.fileID, name: file.fileName, isFolder: false, size: file.size)
+            plate(title: file.fileName, detail: CloudFiles.drive(key: file.driveKey)?.name ?? file.driveKey, action: { store.play(file) }) {
+                Image(systemName: cloud.symbol).font(.system(size: 40, weight: .medium)).foregroundStyle(cloud.tint)
+            }
         }
     }
 
@@ -466,6 +471,7 @@ private struct WatchNowPhoneFavorite: View {
         case .live(let channel): channel.name
         case .video(let video): video.videoName
         case .episode(let episode): episode.video.videoName
+        case .cloud(let file): file.fileName
         }
     }
 
