@@ -3052,9 +3052,13 @@ extension VideoDetailView {
         // Its buttons are Liquid Glass, as on the watch page.
         .environment(\.glassControls, true)
         .task { if detail == nil { await loadDetail() } }
-        .onDisappear { requestTask?.cancel() }
         #if os(tvOS)
+        // Both branches carry a modifier: a dot-leading line after an empty #if branch is parsed as a
+        // new statement, not a chain continuation ("cannot infer contextual base in reference to member
+        // 'sheet'"), so the tvOS branch cannot be left empty here.
+        .onDisappear { requestTask?.cancel() }
         #else
+        .onDisappear { requestTask?.cancel() }
         .sheet(isPresented: $showsAllEpisodes) { allEpisodes }
         #if os(iOS)
         .sheet(isPresented: $showsConfigCenter) { ConfigCenterView { await configCenterAddress() } }

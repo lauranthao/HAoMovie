@@ -4,6 +4,11 @@ import SwiftUI
 /// pages): the selected one is filled, a tap chooses it, and a long press shows
 /// the item's actions when given.
 struct SourceStrip: View {
+    #if os(macOS)
+    static let controlSize: CGFloat = 30
+    #else
+    static let controlSize: CGFloat = 44
+    #endif
     struct Item: Identifiable, Hashable {
         let id: String
         let name: String
