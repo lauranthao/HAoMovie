@@ -420,6 +420,22 @@
 		770C5B730A8FBE3C009C5372 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		59DAA59D477A91E75E0468AF = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A6070B9CF28E71610AA267AE = {isa = PBXBuildFile; fileRef = 59DAA59D477A91E75E0468AF; };
+		9CA8D33EF8FD747443F62541 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		950754C98EF1933E58C5C731 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = zh-Hans; path = zh-Hans.lproj/Localizable.strings; sourceTree = "<group>"; };
+		4F844A42A392AF098567A8C7 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = zh-Hant; path = zh-Hant.lproj/Localizable.strings; sourceTree = "<group>"; };
+		48CBF17F93C15DB850ADA767 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/Localizable.strings; sourceTree = "<group>"; };
+		F0A91D7F2761031F796F562D = {
+			isa = PBXVariantGroup;
+			children = (
+				9CA8D33EF8FD747443F62541,
+				950754C98EF1933E58C5C731,
+				4F844A42A392AF098567A8C7,
+				48CBF17F93C15DB850ADA767,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+		60EC8D72AACA7D0B13237AE6 = {isa = PBXBuildFile; fileRef = F0A91D7F2761031F796F562D; };
 		7B0000010000000000000001 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HAoMovie.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D1D0524B025E57AFFF263442 = {
 			isa = PBXGroup;
@@ -648,6 +664,7 @@
 			children = (
 				770C5B730A8FBE3C009C5372,
 				59DAA59D477A91E75E0468AF,
+				F0A91D7F2761031F796F562D,
 			);
 			name = Resources;
 			path = Resources;
@@ -891,6 +908,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A6070B9CF28E71610AA267AE,
+				60EC8D72AACA7D0B13237AE6,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -929,6 +947,9 @@
 			knownRegions = (
 				en,
 				Base,
+				ja,
+				zh-Hans,
+				zh-Hant,
 			);
 			mainGroup = 7B0000030000000000000003;
 			productRefGroup = 7B0000020000000000000002;
@@ -985,7 +1006,7 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_TESTABILITY = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -1047,7 +1068,7 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				GCC_OPTIMIZATION_LEVEL = s;
