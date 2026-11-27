@@ -3,8 +3,15 @@ import Foundation
 import CryptoKit
 
 #if !os(macOS)
-@_silgen_name("TVAppleRuntimeRequest")
-private func nativePluginRequest(_ resources: UnsafePointer<CChar>, _ request: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>?
+// HAo Movie ships no embedded JVM (no libTVAppleRuntime.a, no host.jar): the native
+// TVAppleRuntimeRequest symbol does not exist in this build, so the request call is a
+// stub that always answers nothing — the worker then reports "The plugin runtime
+// returned no response.", and `available` is false without host.jar, so JAR plugin
+// sources are gated off before they can reach it. (EmbeddedNodeHost is stubbed the
+// same way: no embedded Node runtime.)
+private func nativePluginRequest(_ resources: UnsafePointer<CChar>, _ request: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>? {
+    nil
+}
 #endif
 
 /// One JVM per app, shared by every plugin source: sources from one archive share a runtime
