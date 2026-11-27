@@ -1184,8 +1184,22 @@ struct PlaybackSettingsView: View {
     }
 }
 
-/// Adding a subscription: the address, a shortcut to the default one, and Add in the toolbar.
+/// Adding a subscription: the address, recommended sources to tap instead of pasting, and Add in the toolbar.
 /// Closes itself once the import succeeds; a failure stays here under the field.
+private enum RecommendedSubscriptions {
+    struct Item: Sendable { let name: String; let detail: String; let address: String }
+    /// Verified reachable with valid subscription JSON on 2026-11-27. Public TVBox lists die often;
+    /// re-check an address before shipping it in a new version.
+    static let all: [Item] = [
+        Item(name: "影视仓推荐", detail: "1630 个源 · 每日更新",
+             address: "https://raw.githubusercontent.com/hebijunge/tvbox-config/main/tvbox_recommended.json"),
+        Item(name: "精选能播", detail: "158 个源 · 实测能搜能播",
+             address: "https://raw.githubusercontent.com/hebijunge/tvbox-config/main/exports/healthy.json"),
+        Item(name: "单仓聚合", detail: "549 个源",
+             address: "https://raw.githubusercontent.com/Lightconer/tvbox-ysc-config/main/output/单仓聚合.json"),
+    ]
+}
+
 struct AddSubscriptionSheet: View {
     @Environment(Store.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -1211,6 +1225,24 @@ struct AddSubscriptionSheet: View {
                 } footer: {
                     if let error = store.importError { Text(error).foregroundStyle(Brand.amber) }
                     else { Text(L10n.text("Paste the address of a TVBox JSON subscription or an M3U or TXT live playlist.")) }
+                }
+                Section {
+                    ForEach(RecommendedSubscriptions.all, id: \.address) { item in
+                        Button {
+                            Task {
+                                await store.importSubscription(address: item.address, name: item.name)
+                                if store.importError == nil { dismiss() }
+                            }
+                        } label: {
+                            FormLabel(symbol: "star.fill", tint: .yellow, title: item.name, subtitle: item.detail)
+                                .foregroundStyle(.primary)
+                        }
+                        .disabled(store.importing)
+                    }
+                } header: {
+                    Text("推荐源")
+                } footer: {
+                    Text("点一下就能导入，不用贴地址。")
                 }
             }.settingsRows() }
             .settingsForm(L10n.text("Add Subscription"))
