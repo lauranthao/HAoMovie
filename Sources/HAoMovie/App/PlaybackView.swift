@@ -699,7 +699,8 @@ import IOKit.pwr_mgt
             return (value.start.seconds, CMTimeRangeGetEnd(value).seconds)
         }
         let itemAhead = SpeedBoost.bufferedAhead(ranges: ranges, at: now)
-        let cloudAhead = 0
+        // No cloud download exists in this build, so nothing is buffered ahead of the item.
+        let cloudAhead: Double = 0
         if let itemAhead { return itemAhead + cloudAhead }
         return cloudAhead > 0 ? cloudAhead : nil
     }
@@ -1299,7 +1300,7 @@ import IOKit.pwr_mgt
         }
         // The Mac plays HLS through a local proxy; name the real server instead.
         let segmentHost = events.last?.uri.flatMap { URL(string: $0)?.host() }
-        next.host = segmentHost.flatMap { ["127.0.0.1", "localhost"].contains($0) ? nil : $0 } ?? cloud?.host ?? origin
+        next.host = segmentHost.flatMap { ["127.0.0.1", "localhost"].contains($0) ? nil : $0 } ?? origin
         if let upstream {
             next.host = upstream.host ?? next.host
             next.httpStatus = upstream.status.flatMap { (400..<600).contains($0) ? $0 : nil }

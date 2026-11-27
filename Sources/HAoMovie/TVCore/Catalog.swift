@@ -330,7 +330,7 @@ public struct CatalogClient: Sendable {
     }
 
     private func perform(_ params: [String: String]) async throws -> [String: JSONValue] {
-        if site.isTelegram { return try await TelegramSource.request(site: site, params: params, http: http) }
+        if site.isTelegram { return try await TelegramSource.request(site, params: params, http: http) }
         // Only native JSON/XML sources run in this build: no JAR, JS or Python runtime is included.
         // (Cloud Files, lite ports, script runtimes and JAR spiders are all cut.)
         let (data, _) = try await http.get(requestURL(params), headers: site.raw["header"]?.object?.compactMapValues(\.string) ?? [:])

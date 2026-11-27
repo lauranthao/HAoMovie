@@ -2498,3 +2498,68 @@ struct ProfilesView: View {
         .accessibilityAddTraits(open ? .isSelected : [])
     }
 }
+
+extension View {
+    /// A button that fills its row: tinted text on iPhone, a plain clickable row on the Mac, where a
+    /// form would otherwise draw a push button around the whole label.
+    @ViewBuilder func formRowButton() -> some View {
+        #if os(macOS)
+        buttonStyle(.plain).contentShape(Rectangle())
+        #else
+        self
+        #endif
+    }
+    /// Settings as the system draws them, like System Settings and the Settings app: the system's
+    /// grouped background and row fills, and the system accent on switches and buttons instead of
+    /// the app's neutral one. The scroll view spans the page and margins centre the rows; a narrowed
+    /// frame left the toolbar's scroll edge as a band over the middle column only.
+    func settingsForm(_ title: String) -> some View {
+        GeometryReader { proxy in
+            let extra = (proxy.size.width - Layout.settingsWidth) / 2
+            let form = formStyle(.grouped).tint(systemAccent)
+                #if os(iOS)
+                // The app's navy canvas, as on every other page, instead of the system's black.
+                .scrollContentBackground(.hidden)
+                .background { Backdrop() }
+                #elseif os(macOS)
+                .modifier(ThemedFormBackground())
+                #endif
+            // Only when there is room to spare: a zero margin would replace the system's own insets.
+            if extra > 0 { form.contentMargins(.horizontal, extra, for: .scrollContent) } else { form }
+        }
+        .screenTitle(title, width: Layout.settingsWidth)
+    }
+    /// Rows in the app's fill on iPhone and iPad; the Mac keeps System Settings' own.
+    @ViewBuilder func settingsRows() -> some View {
+        #if os(iOS)
+        listRowBackground(SettingsStyle.rowFill)
+        #else
+        self
+        #endif
+    }
+    /// Switches in the system's own colour: green on iPhone and iPad, the accent on the Mac. Every switch on
+    /// iPhone and iPad takes it: the neutral accent is near-white in Dark Mode, so a switch tinted with it turned white.
+    @ViewBuilder func settingsSwitch() -> some View {
+        #if os(iOS)
+        tint(.green)
+        #else
+        self
+        #endif
+    }
+    /// Artwork that runs under the bars. On the Mac it is laid out beside the sidebar: the split view's detail reports
+    /// the sidebar's width as a leading inset, so ignoring every edge stretched the art under the sidebar. On macOS 26
+    /// a mirrored, blurred copy fills the space under the floating sidebar instead, so the page has no hard edge there.
+    @ViewBuilder func discoverFullBleed() -> some View {
+        #if os(macOS)
+        if #available(macOS 26, *) {
+            // The art itself from the window's top edge; only the sidebar's side gets the mirrored copy. Extending
+            // first laid the art out below the toolbar and filled the toolbar with a blurred copy of it.
+            ignoresSafeArea(edges: .top).backgroundExtensionEffect()
+        } else {
+            ignoresSafeArea(edges: .top)
+        }
+        #else
+        ignoresSafeArea()
+        #endif
+    }
+}
