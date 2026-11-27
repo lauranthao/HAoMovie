@@ -1,5 +1,4 @@
 import SwiftUI
-import TVCore
 
 /// Xunlei signs in with a code texted to the account's phone number, as its own app does. The sign-in is kept
 /// with the other drives' and reaches CatPawOpen sources on their next request.

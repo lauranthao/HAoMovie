@@ -1,7 +1,6 @@
 #if os(iOS)
 import Photos
 import SwiftUI
-import TVCore
 import WebKit
 
 /// Sign in on the service's own page, in a private web view: a phone can't scan a code on its own

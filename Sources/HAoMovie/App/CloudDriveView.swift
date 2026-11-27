@@ -1,5 +1,4 @@
 import SwiftUI
-import TVCore
 
 /// Cloud drive sign-ins on iPhone, iPad and Apple TV. Apple TV has no browser: it shows a code to
 /// scan with the drive's phone app. iPhone and iPad can't scan their own screen, so they open the

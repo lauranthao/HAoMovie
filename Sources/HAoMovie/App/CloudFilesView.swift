@@ -1,5 +1,4 @@
 import SwiftUI
-import TVCore
 
 /// Cloud Files: the Quark, UC, 115 and Baidu Netdisk drives signed in under Cloud Drive Accounts and the saved AList
 /// servers, WebDAV shares and Emby or Jellyfin servers. Open folders and play their videos; the rest of the folder plays

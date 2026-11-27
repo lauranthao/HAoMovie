@@ -1,5 +1,4 @@
 import SwiftUI
-import TVCore
 
 /// Sign in to a cloud drive by scanning a code with the drive's phone app; there is no browser
 /// on Apple TV. (On iPhone and iPad, to sign in with another phone.) The saved sign-in reaches the
