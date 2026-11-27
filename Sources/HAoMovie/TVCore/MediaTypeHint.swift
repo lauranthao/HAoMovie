@@ -4,10 +4,17 @@ import Foundation
 /// link is when its name or server says nothing. Also remembers a type a
 /// rescue learned for an address, so a second try doesn't ask again.
 public enum MediaTypeHint {
+    /// `learned` is read and written from player work on several threads, so
+    /// it goes through a lock — a plain static var is shared mutable state
+    /// and Swift 6 refuses to compile it (Movie build #8).
+    private static let lock = NSLock()
     private static var learned: [String: String] = [:]
 
     public static func mimeType(for url: URL) -> String? {
-        if let known = learned[url.absoluteString] { return known }
+        lock.lock()
+        let known = learned[url.absoluteString]
+        lock.unlock()
+        if let known { return known }
         switch url.pathExtension.lowercased() {
         case "m3u8": return "application/vnd.apple.mpegurl"
         case "mpd": return "application/dash+xml"
@@ -29,6 +36,8 @@ public enum MediaTypeHint {
     }
 
     public static func set(_ type: String, for url: URL) {
+        lock.lock()
         learned[url.absoluteString] = type
+        lock.unlock()
     }
 }
