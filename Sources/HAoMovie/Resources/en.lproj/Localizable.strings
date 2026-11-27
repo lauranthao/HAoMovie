@@ -2412,3 +2412,9 @@
 "Date" = "Date";
 "No programs to replay on this date." = "No programs to replay on this date.";
 "This program can no longer be replayed." = "This program can no longer be replayed.";
+
+// Discover (Douban hot lists).
+"Hot Movies" = "Hot Movies";
+"Hot TV Shows" = "Hot TV Shows";
+"Hot Variety Shows" = "Hot Variety Shows";
+"Couldn't load this list." = "Couldn't load this list.";

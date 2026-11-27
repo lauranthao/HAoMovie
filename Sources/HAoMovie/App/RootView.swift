@@ -1,13 +1,14 @@
 import SwiftUI
 
 enum AppSection: String, CaseIterable, Identifiable, Hashable {
-    case home = "Watch Now", live = "Live TV", search = "Global Search", sites = "Sources", files = "Cloud Files", favorites = "Favorites", history = "Playback History", downloads = "Downloads", settings = "Settings", more = "More"
+    case home = "Watch Now", discover = "Discover", live = "Live TV", search = "Global Search", sites = "Sources", files = "Cloud Files", favorites = "Favorites", history = "Playback History", downloads = "Downloads", settings = "Settings", more = "More"
     var id: String { rawValue }
     /// The raw values are also saved settings and QA arguments, so the offline cache keeps its old one.
     var title: String { self == .downloads ? L10n.text("Offline Cache") : L10n.text(rawValue) }
     var icon: String {
         switch self {
         case .home: "play.rectangle.fill"
+        case .discover: "safari.fill"
         case .search: "magnifyingglass"
         case .live: "dot.radiowaves.left.and.right"
         case .sites: "square.grid.2x2.fill"
@@ -60,7 +61,7 @@ struct RootView: View {
         // The iPad's sidebar, in the order set in Settings > Edit Tab Bar (#427).
         return PhoneTabs.sidebar(stored: storedTabs, hiding: store.hiddenSections)
         #else
-        let sections = [AppSection.home, .live, .search, .sites, .favorites, .history, .downloads, .settings]
+        let sections = [AppSection.home, .discover, .live, .search, .sites, .favorites, .history, .downloads, .settings]
             .filter { !store.hiddenSections.contains($0) }
         #if os(tvOS)
         // Where the remote already goes to change section, so the song is one move away from anywhere.
@@ -317,6 +318,7 @@ struct SectionPage: View {
     var body: some View {
         switch section {
         case .home: HomeView()
+        case .discover: DiscoverView()
         case .search: GlobalSearchView()
         case .live: LiveView()
         case .sites: SitesView()

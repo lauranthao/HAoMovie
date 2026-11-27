@@ -2418,3 +2418,9 @@
 "Date" = "日期";
 "No programs to replay on this date." = "这一天没有可以回看的节目。";
 "This program can no longer be replayed." = "这个节目已过了回看期限。";
+
+// Discover (Douban hot lists).
+"Hot Movies" = "热门电影";
+"Hot TV Shows" = "热播剧集";
+"Hot Variety Shows" = "热播综艺";
+"Couldn't load this list." = "这个列表加载失败。";
