@@ -1075,7 +1075,7 @@ struct MobilePlayerView: View {
             HStack {
                 Text(L10n.text("LIVE")).font(.caption.weight(.bold))
                     .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(.red, in: Capsule())
+                    .background(Brand.rose, in: Capsule())
                 Spacer(minLength: 0)
                 stepButtons
             }

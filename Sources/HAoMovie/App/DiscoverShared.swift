@@ -21,7 +21,7 @@ enum DiscoverLayout {
     static let captionHeight: CGFloat = 70
     static func heroHeight(_ width: CGFloat) -> CGFloat { width * 0.46875 }
     #else
-    static let gutter: CGFloat = 17
+    static let gutter: CGFloat = 16
     static let spacing: CGFloat = 13
     static let posterWidth: CGFloat = 116
     static let landscapeWidth: CGFloat = 177
@@ -30,7 +30,7 @@ enum DiscoverLayout {
     static let headingHeight: CGFloat = 32
     static let caption: CGFloat = 13
     static let secondary: CGFloat = 11
-    static let captionHeight: CGFloat = 46
+    static let captionHeight: CGFloat = 32
     static func heroHeight(_ width: CGFloat) -> CGFloat { width < 600 ? width * 1.5 : min(720, width * 0.65) }
     #endif
 }

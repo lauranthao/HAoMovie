@@ -1345,15 +1345,15 @@ struct AddSubscriptionSheet: View {
                                 if store.importError == nil { dismiss() }
                             }
                         } label: {
-                            FormLabel(symbol: "star.fill", tint: .yellow, title: item.name, subtitle: item.detail)
+                            FormLabel(symbol: "star.fill", tint: Brand.amber, title: item.name, subtitle: item.detail)
                                 .foregroundStyle(.primary)
                         }
                         .disabled(store.importing)
                     }
                 } header: {
-                    Text("推荐源")
+                    Text(L10n.text("Recommended Sources"))
                 } footer: {
-                    Text("点一下就能导入，不用贴地址。")
+                    Text(L10n.text("Tap to import — no need to paste an address."))
                 }
             }.settingsRows() }
             .settingsForm(L10n.text("Add Subscription"))

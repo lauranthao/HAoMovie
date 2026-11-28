@@ -486,7 +486,7 @@ struct AppMark: View {
         AppIcons.shared.artwork.resizable().interpolation(.high).scaledToFill()
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius: size * 0.225, style: .continuous))
-            .shadow(color: Color(red: 0.1, green: 0.55, blue: 1).opacity(0.35), radius: size * 0.22, y: size * 0.06)
+            .shadow(color: .black.opacity(0.35), radius: size * 0.22, y: size * 0.06)
     }
 }
 
@@ -515,7 +515,6 @@ private struct PosterWall: View {
             }
             .rotationEffect(.degrees(-6))
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .center)
-            .background { EllipticalGradient(colors: [Brand.cyan.opacity(0.3), .clear], endRadiusFraction: 0.5) }
             // An ellipse that reaches clear at the frame's edges, so no tile meets a hard clip.
             .mask { EllipticalGradient(stops: [.init(color: .black, location: 0), .init(color: .black.opacity(0.75), location: 0.45), .init(color: .clear, location: 1)], endRadiusFraction: 0.5) }
         }
@@ -530,7 +529,6 @@ private struct PosterWall: View {
 
 /// One tile of the wall: the placeholder, and the cover fading in over it once loaded.
 private struct PosterWallTile: View {
-    private static let hues: [Color] = [Brand.cyan, Brand.indigo, Brand.teal, Brand.cyan.opacity(0.6)]
     private static let symbols = ["film", "sparkles.tv", "theatermasks", "music.note.tv", "popcorn", "star"]
     let index: Int
     let width: CGFloat
@@ -558,10 +556,9 @@ private struct PosterWallTile: View {
     }
 
     private var placeholder: some View {
-        let hue = Self.hues[index % Self.hues.count]
         let lit = index % 3 != 1
         return RoundedRectangle(cornerRadius: width * 0.08, style: .continuous)
-            .fill(LinearGradient(colors: lit ? [hue.opacity(0.7), hue.opacity(0.28)] : [PosterSurface.raised, PosterSurface.base],
+            .fill(LinearGradient(colors: [PosterSurface.raised, PosterSurface.base],
                                  startPoint: .topLeading, endPoint: .bottomTrailing))
             .overlay {
                 Image(systemName: Self.symbols[index % Self.symbols.count])
@@ -617,10 +614,10 @@ enum HomeSection: String, CaseIterable, Identifiable {
         switch self {
         case .upNext: Brand.cyan
         case .continueWatching: Brand.amber
-        case .pinnedSources: .purple
-        case .recommendations: .orange
+        case .pinnedSources: Brand.indigo
+        case .recommendations: Brand.amber
         case .favorites: Brand.rose
-        case .liveTV: .red
+        case .liveTV: Brand.rose
         }
     }
 }

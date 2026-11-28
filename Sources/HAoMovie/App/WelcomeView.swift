@@ -20,7 +20,7 @@ struct WelcomeRecommendedSources: View {
                             await store.importSubscription(address: item.address, name: item.name)
                         }
                     } label: {
-                        FormLabel(symbol: "star.fill", tint: .yellow, title: item.name, subtitle: item.detail)
+                        FormLabel(symbol: "star.fill", tint: Brand.amber, title: item.name, subtitle: item.detail)
                             .foregroundStyle(.primary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 8)

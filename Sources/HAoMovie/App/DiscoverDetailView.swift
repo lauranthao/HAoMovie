@@ -40,7 +40,7 @@ struct DiscoverDetailView: View {
             ZStack(alignment: .top) {
                 DiscoverDetailBackdrop(paint: paint, width: width, heroHeight: coverHeight, scrollY: scrollY)
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 30) {
+                    LazyVStack(alignment: .leading, spacing: 32) {
                         identity(width: width)
                         discoverEpisodes
                     }.padding(.bottom, 40)
@@ -73,7 +73,7 @@ struct DiscoverDetailView: View {
                 sourceButton
             }
         }
-        .padding(.horizontal, 20).padding(.bottom, 0)
+        .padding(.horizontal, 16).padding(.bottom, 0)
         #if os(macOS)
         .frame(maxWidth: 640)
         #endif
@@ -173,7 +173,7 @@ struct DiscoverDetailView: View {
         } else {
             // No subscription: the title still shows, and the page says what it needs.
             VStack(alignment: .leading, spacing: 12) {
-                Text(L10n.text("Episodes")).font(.title3.weight(.semibold))
+                Text(L10n.text("Episodes")).font(.system(size: DiscoverLayout.heading, weight: .semibold))
                 Text(L10n.text("Add a subscription to search your sources for this title."))
                     .font(.subheadline).foregroundStyle(.secondary)
                 Button { store.section = .settings } label: {
@@ -186,7 +186,7 @@ struct DiscoverDetailView: View {
                 #endif
                 .accessibilityIdentifier("discover.sources.search")
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 16)
         }
     }
 }
@@ -408,12 +408,12 @@ private struct DiscoverSourceEpisodes<CatalogEpisodes: View>: View {
         #if os(tvOS)
         DiscoverLayout.gutter
         #else
-        20
+        16
         #endif
     }
 
     private var heading: some View {
-        Text(L10n.text("Episodes")).font(.title3.weight(.semibold))
+        Text(L10n.text("Episodes")).font(.system(size: DiscoverLayout.heading, weight: .semibold))
     }
 
     @ViewBuilder private var searchProgress: some View {

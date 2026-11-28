@@ -53,7 +53,7 @@ struct GlobalSearchView: View {
                 .safeAreaInset(edge: .bottom, spacing: 0) { bottomChrome }
             }.frame(width: geometry.size.width, height: geometry.size.height).clipShape(DiscoverSearchHorizontalClip())
         }
-        .background { DiscoverSearchAtmosphere() }
+        .background { Backdrop() }
         #if !os(macOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
@@ -69,7 +69,7 @@ struct GlobalSearchView: View {
     }
 
     private var topChrome: some View {
-        VStack(spacing: 19) {
+        VStack(spacing: 20) {
             Text(L10n.text("Search")).font(.system(size: 17, weight: .semibold)).frame(height: 44).frame(maxWidth: .infinity)
             if store.subscription != nil {
                 SourceStrip(items: [SourceStrip.Item(id: "", name: L10n.text("All Sources"))]
@@ -79,7 +79,7 @@ struct GlobalSearchView: View {
                 }
                 .padding(.horizontal, 16)
             }
-        }.padding(.top, 16).padding(.bottom, 5)
+        }.padding(.top, 16).padding(.bottom, 4)
     }
 
     private var bottomChrome: some View {
@@ -92,12 +92,12 @@ struct GlobalSearchView: View {
                     Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
                         .accessibilityLabel(L10n.text("Clear")).accessibilityIdentifier("discover.search.clear")
                 }
-            }.padding(.horizontal, 18).frame(height: 48).glassSurface(.regular, in: Capsule())
+            }.padding(.horizontal, 16).frame(height: 48).glassSurface(.regular, in: Capsule())
             if focused {
                 Button { focused = false } label: { Image(systemName: "xmark").font(.system(size: 23)).frame(width: 48, height: 48).glassSurface(.regular, in: Circle()) }
                     .accessibilityLabel(L10n.text("Close")).accessibilityIdentifier("discover.search.cancel")
             }
-        }.padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 10)
+        }.padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 8)
     }
 
     private func submit() {
@@ -126,7 +126,7 @@ struct GlobalSearchView: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
                     ForEach(history, id: \.self) { text in
-                        Button { store.searchVideos(text) } label: { Text(text).font(.system(size: 13)).padding(.horizontal, 14).frame(height: 34).glassSurface(.regular, in: Capsule()) }
+                        Button { store.searchVideos(text) } label: { Text(text).font(.system(size: 13)).padding(.horizontal, 12).frame(height: 32).glassSurface(.regular, in: Capsule()) }
                     }
                 }.padding(.horizontal, 16)
             }.scrollIndicators(.hidden)
@@ -163,7 +163,7 @@ struct GlobalSearchView: View {
                             LazyHStack(spacing: 10) {
                                 ForEach(videos) { video in
                                     resultButton(video, result: result, config: config)
-                                        .frame(width: min(265.333, width - 32))
+                                        .frame(width: min(264, width - 32))
                                 }
                             }.padding(.horizontal, 16)
                         }.scrollIndicators(.hidden).frame(height: 136).padding(.bottom, 12)
@@ -184,7 +184,7 @@ struct GlobalSearchView: View {
                             Image(systemName: expanded.contains(result.id) ? "rectangle.split.2x1" : "list.bullet")
                                 .font(.system(size: 15, weight: .medium))
                             Spacer()
-                        }.frame(height: 30).contentShape(Rectangle())
+                        }.frame(height: 32).contentShape(Rectangle())
                     }.buttonStyle(.plain).padding(.horizontal, 16).padding(.bottom, 4)
                 }
             }
@@ -213,7 +213,7 @@ struct GlobalSearchView: View {
                     .padding(.horizontal, 16).padding(.vertical, 6)
             } header: {
                 Text(L10n.text("Failed Sources")).font(.system(size: 16, weight: .semibold))
-                    .frame(height: 30, alignment: .leading).padding(.horizontal, 16).padding(.bottom, 4)
+                    .frame(height: 32, alignment: .leading).padding(.horizontal, 16).padding(.bottom, 4)
             }
         }
     }
@@ -223,12 +223,11 @@ struct GlobalSearchView: View {
 /// year · remarks · category, and the source's synopsis. No star rating: a source
 /// search result carries no rating to show.
 struct GlobalSearchCard: View {
-    @Environment(\.colorScheme) private var colorScheme
     let video: Video
     var body: some View {
         HStack(spacing: 10) {
             PosterImage(url: video.poster, headers: video.posterHeaders)
-                .frame(width: 80, height: 120).clipShape(RoundedRectangle(cornerRadius: 12))
+                .frame(width: 80, height: 120).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 5) {
                 Text(video.name).font(.system(size: 17, weight: .bold)).lineLimit(1)
                 Text([video.year ?? "", video.remarks, video.category ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))
@@ -237,62 +236,13 @@ struct GlobalSearchCard: View {
                     .font(.system(size: 13)).foregroundStyle(.secondary).lineLimit(2).lineSpacing(2)
             }.frame(maxWidth: .infinity, alignment: .leading).padding(.trailing, 4)
         }.padding(8).frame(height: 136)
-            .background(.white.opacity(colorScheme == .dark ? 0.10 : 0.54), in: RoundedRectangle(cornerRadius: 20))
-            .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(.white.opacity(colorScheme == .dark ? 0.07 : 0.45), lineWidth: 0.5) }
-            .contentShape(RoundedRectangle(cornerRadius: 20))
+            .contentPanel(cornerRadius: 16)
     }
 }
 
 /// Keep Duo's side display clear while allowing glass shadows through the vertical safe areas.
 private struct DiscoverSearchHorizontalClip: Shape {
     func path(in rect: CGRect) -> Path { Path(CGRect(x: rect.minX, y: rect.minY - 1000, width: rect.width, height: rect.height + 2000)) }
-}
-
-struct DiscoverSearchAtmosphere: View {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var started = Date()
-    var body: some View {
-        GeometryReader { geometry in
-            // A drift this slow needs no more than 15 frames a second, and soft-edged gradients look like the
-            // blurred ellipses they replace: two full-screen blurs redrawn at the display's rate kept the GPU
-            // busy for as long as the page was open (issue #368).
-            TimelineView(.animation(minimumInterval: 1.0 / 15, paused: reduceMotion)) { timeline in
-                let shift = reduceMotion ? 0 : Self.shift(timeline.date.timeIntervalSince(started))
-                ZStack {
-                    (scheme == .dark ? Color(red: 0.22, green: 0.19, blue: 0.26) : Color(red: 0.96, green: 0.95, blue: 0.99))
-                    Self.glow(Color(red: 0.60, green: 0.52, blue: 0.77).opacity(scheme == .dark ? 0.18 : 0.22),
-                              width: geometry.size.width * 1.8, height: geometry.size.height * 0.95, blur: 90)
-                        .offset(x: -90 + 160 * shift, y: -50 - 120 * shift)
-                    Self.glow(Color(red: 1, green: 0.62, blue: 0.70).opacity(scheme == .dark ? 0.10 : 0.20),
-                              width: geometry.size.width * 1.3, height: geometry.size.height * 0.8, blur: 100)
-                        .offset(x: 90 - 190 * shift, y: 270 - 160 * shift)
-                }
-            }
-        }.discoverFullBleed().allowsHitTesting(false)
-    }
-
-    /// An ellipse of this size as if blurred by `blur`: a gradient that falls off as a Gaussian blur does, from
-    /// solid inside to clear three blur radii past the edge.
-    private static func glow(_ color: Color, width: CGFloat, height: CGFloat, blur: CGFloat) -> some View {
-        let half = min(width, height) / 2, reach = half + blur * 3
-        let stops = (0...12).map { step in
-            let location = Double(step) / 12
-            // How far past the ellipse's edge this stop lies, in blur radii.
-            let outside = (location * reach - half) / blur
-            return Gradient.Stop(color: color.opacity(0.5 * erfc(outside / 2.squareRoot())), location: location)
-        }
-        return EllipticalGradient(stops: stops, center: .center, startRadiusFraction: 0, endRadiusFraction: 0.5)
-            // Drawn past the ellipse's frame, as the blur was, without changing the layout.
-            .frame(width: width + blur * 6, height: height + blur * 6).frame(width: width, height: height)
-    }
-
-    /// 0 to 1 and back every 32 s, eased in and out as the 16 s `easeInOut` it replaces.
-    private static func shift(_ elapsed: TimeInterval) -> CGFloat {
-        let phase = elapsed.truncatingRemainder(dividingBy: 32) / 16
-        let t = phase <= 1 ? phase : 2 - phase
-        return t * t * (3 - 2 * t)
-    }
 }
 
 #if os(iOS)

@@ -19,7 +19,7 @@ struct DiscoverView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 30) {
+            LazyVStack(alignment: .leading, spacing: 32) {
                 if model.loading, !model.loaded {
                     ProgressView().frame(maxWidth: .infinity).frame(height: 160)
                 }
@@ -48,7 +48,7 @@ struct DiscoverView: View {
                     Button { editing = true } label: {
                         Label(L10n.text("Edit Layout"), systemImage: "slider.horizontal.3")
                             #if !os(tvOS)
-                            .font(.subheadline).padding(18).glassSurface(.regular, in: Capsule())
+                            .font(.subheadline).padding(16).glassSurface(.regular, in: Capsule())
                             #endif
                     }
                     #if os(tvOS)
@@ -56,7 +56,7 @@ struct DiscoverView: View {
                     #else
                     .buttonStyle(.plain)
                     #endif
-                    .frame(maxWidth: .infinity).padding(.top, 10)
+                    .frame(maxWidth: .infinity).padding(.top, 8)
                 }
             }
             .padding(.bottom, 28)
@@ -93,7 +93,7 @@ struct DiscoverView: View {
                 }
                 .navigationTitle(L10n.text("Edit Layout"))
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.text("Done")) { editing = false } } }
-            }.preferredColorScheme(.dark).discoverSheetSize(width: 420, height: 560)
+            }.discoverSheetSize(width: 420, height: 560)
         }
     }
 
@@ -140,7 +140,7 @@ struct DiscoverView: View {
 
     /// Douban's hot lists, captioned with Douban's score. A title opens its title page.
     private var doubanShelves: some View {
-        VStack(alignment: .leading, spacing: 30) {
+        VStack(alignment: .leading, spacing: 32) {
             ForEach(DoubanCatalog.Feed.allCases, id: \.self) { feed in
                 let items = model.items[feed] ?? []
                 if !items.isEmpty {

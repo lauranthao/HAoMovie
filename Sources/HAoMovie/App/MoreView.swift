@@ -83,13 +83,13 @@ extension AppSection {
     var glyphTint: Color {
         switch self {
         case .home: Brand.cyan
-        case .discover: Color(red: 0.43, green: 0.48, blue: 1.0)
-        case .live: Color(red: 1.0, green: 0.45, blue: 0.32)
-        case .manga: Color(red: 1.0, green: 0.58, blue: 0.0)
-        case .novels: Color(red: 0.20, green: 0.70, blue: 0.48)
-        case .search: Color(red: 0.36, green: 0.60, blue: 1.0)
-        case .sites: Color(red: 0.60, green: 0.46, blue: 1.0)
-        case .files: Color(red: 0.25, green: 0.62, blue: 0.98)
+        case .discover: Brand.indigo
+        case .live: Brand.rose
+        case .manga: Brand.amber
+        case .novels: Brand.teal
+        case .search: Brand.cyan
+        case .sites: Brand.amber
+        case .files: Brand.teal
         case .history: Brand.amber
         case .favorites: Brand.rose
         case .downloads: Brand.teal

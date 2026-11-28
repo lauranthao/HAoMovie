@@ -2198,11 +2198,11 @@ struct VideoDetailView: View {
                 hero
                 playbackBanner
                 if let detail, !synopsisText(detail).isEmpty {
-                    synopsis(detail).font(.body).padding(.horizontal, 18).padding(.vertical, 14)
+                    synopsis(detail).font(.body).padding(.horizontal, 16).padding(.vertical, 12)
                         .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
             } else {
-                HStack(alignment: .top, spacing: 14) {
+                HStack(alignment: .top, spacing: 12) {
                     Color.clear.aspectRatio(2.0 / 3.0, contentMode: .fit).frame(width: posterWidth)
                         .overlay { PosterImage(url: video.poster, headers: video.posterHeaders) }
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -2234,10 +2234,10 @@ struct VideoDetailView: View {
                         if items.count > 1 {
                             episodeOrderButton(count: items.count)
                         } else {
-                            Text(L10n.text("Episodes")).font(.headline)
+                            Text(L10n.text("Episodes")).font(.system(size: DiscoverLayout.heading, weight: .semibold))
                         }
                         #else
-                        Text(L10n.text("Episodes")).font(.headline)
+                        Text(L10n.text("Episodes")).font(.system(size: DiscoverLayout.heading, weight: .semibold))
                         Text("\(items.count)").font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
                         if items.count > 1 { episodeOrderButton }
                         #endif
@@ -2363,12 +2363,15 @@ struct VideoDetailView: View {
         #endif
         .tvFocusSection()
     }
+    /// tvOS keeps its own minimum (the focused glass row grows
+    /// toward the trailing edge). Everywhere else the episode
+    /// chips share Layout.episodeMin — 100, room for 第 10 集 /
+    /// 第01集 without an ellipsis.
     private var episodeMin: CGFloat {
         #if os(tvOS)
         170
         #else
-        // Room for 第 10 集 / 第01集 without an ellipsis.
-        100
+        Layout.episodeMin
         #endif
     }
     private func download(_ episode: Episode) -> DownloadItem? {
