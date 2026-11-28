@@ -1321,11 +1321,11 @@
 		5F8A5E115F5155050813027D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaHost.swift; sourceTree = "<group>"; };
 		2D479CB7E10EF0C652EEDB72 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaNetwork.swift; sourceTree = "<group>"; };
 		0DA844D68074B7FB545B4BD4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XimalayaAudio.swift; sourceTree = "<group>"; };
-		83C1E6331568217FCBF54FC2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c; path = quickjs.c; sourceTree = "<group>"; };
-		951DD61B9F3552144E6EFAF8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c; path = libregexp.c; sourceTree = "<group>"; };
-		68836113A14EA4BECA0A2D81 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c; path = libunicode.c; sourceTree = "<group>"; };
-		F8F83354223B66A931A29C3A = {isa = PBXFileReference; lastKnownFileType = sourcecode.c; path = dtoa.c; sourceTree = "<group>"; };
-		0238F4DD8AA12C60EFE8F666 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c; path = TVScript.c; sourceTree = "<group>"; };
+		83C1E6331568217FCBF54FC2 = {isa = PBXFileReference; explicitFileType = sourcecode.c; path = quickjs.c; sourceTree = "<group>"; };
+		951DD61B9F3552144E6EFAF8 = {isa = PBXFileReference; explicitFileType = sourcecode.c; path = libregexp.c; sourceTree = "<group>"; };
+		68836113A14EA4BECA0A2D81 = {isa = PBXFileReference; explicitFileType = sourcecode.c; path = libunicode.c; sourceTree = "<group>"; };
+		F8F83354223B66A931A29C3A = {isa = PBXFileReference; explicitFileType = sourcecode.c; path = dtoa.c; sourceTree = "<group>"; };
+		0238F4DD8AA12C60EFE8F666 = {isa = PBXFileReference; explicitFileType = sourcecode.c; path = TVScript.c; sourceTree = "<group>"; };
 		074AB3AE81D26BD60EC993A0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.module-map; path = module.modulemap; sourceTree = "<group>"; };
 		461BD7C4DE38E8EDABDA941D = {isa = PBXFileReference; lastKnownFileType = folder; path = ScriptAssets; sourceTree = "<group>"; };
 		C465F097C1F0117A0640A417 = {isa = PBXBuildFile; fileRef = 4ECDDC17018DFCFE12C1FD01; };
