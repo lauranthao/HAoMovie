@@ -22,10 +22,17 @@ workflows:
         - content: |-
             #!/usr/bin/env bash
             set -e
+            # -scheme (not -target): with a local SwiftPM package
+            # dependency (Packages/QuickJS), -target builds the package
+            # in place under Packages/QuickJS/build and the explicit-
+            # module precompile then fails creating its index dir
+            # (primary #30). Scheme builds route package products
+            # through DerivedData like the ipa workflow does.
             xcodebuild -project HAoMovie.xcodeproj \
-              -target HAoMovie \
+              -scheme HAoMovie \
               -configuration Debug \
               -sdk iphonesimulator \
+              -derivedDataPath build \
               -destination 'generic/platform=iOS Simulator' \
               CODE_SIGNING_ALLOWED=NO \
               build
