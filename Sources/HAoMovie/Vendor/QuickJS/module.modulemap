@@ -1,4 +1,0 @@
-module QuickJS {
-    header "include/TVScript.h"
-    export *
-}

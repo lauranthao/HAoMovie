@@ -1019,11 +1019,6 @@
 				3C8F94D279418296D98A620E,
 				00C0D7BE234C52C41271D599,
 				E8FEE49CA204BE9BA43BBF2F,
-				76DEDBE29F578F8F63019024,
-				F2B6F42CD76F9CA009C13782,
-				6C516C1DB20970848474AA5F,
-				983655D9F84ED16B79829415,
-				D970E75F099BA9E55A24B00F,
 );
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1031,7 +1026,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
+				92573FB6BBDF16B5C35EF7AD,);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		7B0000070000000000000007 = {
@@ -1057,9 +1052,25 @@
 			dependencies = (
 			);
 			name = HAoMovie;
+			packageProductDependencies = (
+				42328BE8602609402330CA06,
+			);
 			productName = HAoMovie;
 			productReference = 7B0000010000000000000001;
 			productType = "com.apple.product-type.application";
+		};
+		A8A1D857311C5A4EA739CC9A = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/QuickJS;
+		};
+		42328BE8602609402330CA06 = {
+			isa = XCSwiftPackageProductDependency;
+			package = A8A1D857311C5A4EA739CC9A;
+			productName = QuickJS;
+		};
+		92573FB6BBDF16B5C35EF7AD = {
+			isa = PBXBuildFile;
+			productRef = 42328BE8602609402330CA06;
 		};
 		7B0000090000000000000009 = {
 			isa = PBXProject;
@@ -1084,6 +1095,9 @@
 				zh-Hant,
 			);
 			mainGroup = 7B0000030000000000000003;
+			packageReferences = (
+				A8A1D857311C5A4EA739CC9A,
+			);
 			productRefGroup = 7B0000020000000000000002;
 			projectDirPath = "";
 			projectRoot = "";
@@ -1219,13 +1233,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
-					_GNU_SOURCE,
-					QUICKJS_NG_BUILD,
-					NDEBUG,
 				);
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/Sources/HAoMovie/Vendor/QuickJS",
 				);
 				INFOPLIST_FILE = "Sources/HAoMovie/Resources/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1242,7 +1252,6 @@
 				SWIFT_VERSION = 6.0;
 				SWIFT_INCLUDE_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/Sources/HAoMovie/Vendor/QuickJS",
 				);
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1256,13 +1265,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
-					_GNU_SOURCE,
-					QUICKJS_NG_BUILD,
-					NDEBUG,
 				);
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/Sources/HAoMovie/Vendor/QuickJS",
 				);
 				INFOPLIST_FILE = "Sources/HAoMovie/Resources/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1279,7 +1284,6 @@
 				SWIFT_VERSION = 6.0;
 				SWIFT_INCLUDE_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/Sources/HAoMovie/Vendor/QuickJS",
 				);
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1326,7 +1330,6 @@
 		68836113A14EA4BECA0A2D81 = {isa = PBXFileReference; explicitFileType = sourcecode.c; path = libunicode.c; sourceTree = "<group>"; };
 		F8F83354223B66A931A29C3A = {isa = PBXFileReference; explicitFileType = sourcecode.c; path = dtoa.c; sourceTree = "<group>"; };
 		0238F4DD8AA12C60EFE8F666 = {isa = PBXFileReference; explicitFileType = sourcecode.c; path = TVScript.c; sourceTree = "<group>"; };
-		074AB3AE81D26BD60EC993A0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.module-map; path = module.modulemap; sourceTree = "<group>"; };
 		461BD7C4DE38E8EDABDA941D = {isa = PBXFileReference; lastKnownFileType = folder; path = ScriptAssets; sourceTree = "<group>"; };
 		C465F097C1F0117A0640A417 = {isa = PBXBuildFile; fileRef = 4ECDDC17018DFCFE12C1FD01; };
 		BA78EC6067DD29FB8DD4E3B9 = {isa = PBXBuildFile; fileRef = 915F4043983724AE861901F7; };
@@ -1346,11 +1349,6 @@
 		3C8F94D279418296D98A620E = {isa = PBXBuildFile; fileRef = 5F8A5E115F5155050813027D; };
 		00C0D7BE234C52C41271D599 = {isa = PBXBuildFile; fileRef = 2D479CB7E10EF0C652EEDB72; };
 		E8FEE49CA204BE9BA43BBF2F = {isa = PBXBuildFile; fileRef = 0DA844D68074B7FB545B4BD4; };
-		76DEDBE29F578F8F63019024 = {isa = PBXBuildFile; fileRef = 83C1E6331568217FCBF54FC2; };
-		F2B6F42CD76F9CA009C13782 = {isa = PBXBuildFile; fileRef = 951DD61B9F3552144E6EFAF8; };
-		6C516C1DB20970848474AA5F = {isa = PBXBuildFile; fileRef = 68836113A14EA4BECA0A2D81; };
-		983655D9F84ED16B79829415 = {isa = PBXBuildFile; fileRef = F8F83354223B66A931A29C3A; };
-		D970E75F099BA9E55A24B00F = {isa = PBXBuildFile; fileRef = 0238F4DD8AA12C60EFE8F666; };
 		76D69C89EC2C76E7C921EADE = {isa = PBXBuildFile; fileRef = 461BD7C4DE38E8EDABDA941D; };
 		96F0977B6862DD020A0E28D8 = {
 			isa = PBXGroup;
@@ -1369,7 +1367,6 @@
 				68836113A14EA4BECA0A2D81,
 				F8F83354223B66A931A29C3A,
 				0238F4DD8AA12C60EFE8F666,
-				074AB3AE81D26BD60EC993A0,
 			);
 			name = QuickJS;
 			path = QuickJS;

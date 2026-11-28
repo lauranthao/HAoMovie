@@ -1,2 +1,3 @@
 worker-tmdb/node_modules/
 worker-tmdb/.wrangler/
+Packages/QuickJS/.build/
