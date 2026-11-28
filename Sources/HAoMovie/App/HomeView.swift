@@ -490,8 +490,14 @@ struct AppMark: View {
     }
 }
 
-/// Poster tiles in staggered columns, fading into the canvas. Each tile keeps its placeholder: no covers are loaded here.
+/// Poster tiles in staggered columns, fading into the canvas: Douban's hot movies covers,
+/// each fading in over its placeholder as it arrives. A tile with no cover (offline, or
+/// before the list answers) keeps its placeholder.
 private struct PosterWall: View {
+    /// The covers, kept for the session so coming back to the page draws them without asking again.
+    @MainActor private static var loaded: [URL]?
+    @State private var posters = PosterWall.loaded ?? []
+
     var body: some View {
         GeometryReader { proxy in
             let spacing = proxy.size.width * 0.045
@@ -501,7 +507,7 @@ private struct PosterWall: View {
                     VStack(spacing: spacing) {
                         ForEach(0..<4, id: \.self) { row in
                             let index = column * 4 + row
-                            PosterWallTile(index: index, width: width, poster: nil)
+                            PosterWallTile(index: index, width: width, poster: index < posters.count ? posters[index] : nil)
                         }
                     }
                     .offset(y: column == 1 ? -width * 0.55 : column == 2 ? -width * 0.15 : 0)
@@ -512,6 +518,12 @@ private struct PosterWall: View {
             .background { EllipticalGradient(colors: [Brand.cyan.opacity(0.3), .clear], endRadiusFraction: 0.5) }
             // An ellipse that reaches clear at the frame's edges, so no tile meets a hard clip.
             .mask { EllipticalGradient(stops: [.init(color: .black, location: 0), .init(color: .black.opacity(0.75), location: 0.45), .init(color: .clear, location: 1)], endRadiusFraction: 0.5) }
+        }
+        .task {
+            guard Self.loaded == nil, let items = try? await DoubanCatalog.items(.movies), !Task.isCancelled else { return }
+            let covers = Array(items.compactMap(\.cover).prefix(12))
+            Self.loaded = covers
+            posters = covers
         }
     }
 }

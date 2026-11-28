@@ -580,7 +580,7 @@ import SwiftUI
         let keyword = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !keyword.isEmpty else { return }
         let old = defaults.data(forKey: "videoSearchHistory").flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
-        defaults.set(try? JSONEncoder().encode(Array(([keyword] + old.filter { $0 != keyword }).prefix(20))), forKey: "videoSearchHistory")
+        defaults.set(try? JSONEncoder().encode(Array(([keyword] + old.filter { $0 != keyword }).prefix(12))), forKey: "videoSearchHistory")
         searchModel.search(keyword, config: config) { [hiddenSources] site in
             hiddenSources.contains(site, origin: config.origin)
         }

@@ -4,7 +4,7 @@ import SwiftUI
 /// subtitles. A picture with sample comments crossing it sits on top, drawn by the player's own renderer
 /// (`DanmakuCanvas`), so each change shows there at once. The keys are the ones the player's danmaku menus and its
 /// Danmaku Settings sheet set, and they apply to every track (matched or imported comments, Bilibili videos, live
-/// rooms), including one that is playing. There is no danmaku lookup service in HAo Movie.
+/// rooms), including one that is playing. Matched comments come from the danmaku service below.
 struct DanmakuSettingsView: View {
     var body: some View {
         #if os(tvOS)
@@ -12,22 +12,6 @@ struct DanmakuSettingsView: View {
         #else
         FormDanmakuSettingsPage()
         #endif
-    }
-}
-
-/// The player's Danmaku Settings sheet, without its provider: HAo Movie has no
-/// danmaku lookup service (Dandanplay is not used), so there is nothing to match.
-/// Display settings live in Settings > Danmaku.
-struct DanmakuUnavailableView: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "text.bubble").font(.largeTitle).foregroundStyle(.secondary)
-            Text(L10n.text("Danmaku lookup is not available"))
-                .font(.headline)
-            Text(L10n.text("HAo Movie does not use a danmaku lookup service. Comments that come with a video or a live room still show."))
-                .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
-        }
-        .padding(24)
     }
 }
 
@@ -269,19 +253,7 @@ private struct FormDanmakuSettingsPage: View {
                 } footer: {
                     Text(DanmakuSettings.wordsNote)
                 }
-                // No danmaku lookup service: HAo Movie does not use Dandanplay, so there is
-                // nothing to match. Comments that come with a video or a live room still show.
-                Section {
-                    LabeledContent {
-                        Text(L10n.text("Not available")).foregroundStyle(.secondary)
-                    } label: {
-                        FormLabel(symbol: "text.bubble", tint: .blue, title: L10n.text("Danmaku Service"))
-                    }
-                } header: {
-                    Text(L10n.text("Danmaku Service"))
-                } footer: {
-                    Text(L10n.text("HAo Movie does not use a danmaku lookup service. Comments that come with a video or a live room still show."))
-                }
+                DanmakuServiceSettings(showsSwitch: false, showsDisplay: false)
                 Section {
                     Button(L10n.text("Reset to Standard")) { settings.reset() }
                         .formRowButton()

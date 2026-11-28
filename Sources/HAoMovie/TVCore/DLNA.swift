@@ -49,7 +49,7 @@ public enum DLNA {
     static func search(host: String = group) -> String {
         var lines = ["M-SEARCH * HTTP/1.1", "HOST: \(host):\(port)", "MAN: \"ssdp:discover\""]
         if host == group { lines.append("MX: 2") }
-        lines += ["ST: \(rendererType)", "USER-AGENT: iOS/17 UPnP/1.1 Yingxia/1.0", "", ""]
+        lines += ["ST: \(rendererType)", "USER-AGENT: iOS/17 UPnP/1.1 HAoMovie/1.0", "", ""]
         return lines.joined(separator: "\r\n")
     }
 
@@ -299,7 +299,7 @@ public enum DLNADiscovery {
     /// The renderer at a description address (a device whose address the viewer knows, say).
     public static func describe(_ location: URL) async -> DLNADevice? {
         var request = URLRequest(url: location, timeoutInterval: 4)
-        request.setValue("Yingxia/1.0 UPnP/1.1", forHTTPHeaderField: "User-Agent")
+        request.setValue("HAoMovie/1.0 UPnP/1.1", forHTTPHeaderField: "User-Agent")
         guard let (data, response) = try? await URLSession.shared.data(for: request),
               (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
         return DLNA.device(fromDescription: data, location: location)

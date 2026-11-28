@@ -7,6 +7,7 @@ import SwiftUI
 struct HAoMovieApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var store = Store()
+    @State private var updates = Updates()
     /// A link that asks to add a subscription, waiting for the viewer to agree (#167).
     @State private var subscriptionRequest: SubscriptionImportLink?
     #if os(iOS)
@@ -42,6 +43,7 @@ struct HAoMovieApp: App {
                     }
                 }
                 .environment(store)
+                .environment(updates)
         }
     }
 }

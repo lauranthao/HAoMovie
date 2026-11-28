@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 public enum FavoriteKind: String, Codable, Sendable, CaseIterable {
-    case live, video, episode, music, cloud
+    case live, video, episode, cloud
 }
 
 public struct FavoriteVideo: Codable, Hashable, Sendable {

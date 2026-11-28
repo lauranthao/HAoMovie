@@ -1325,9 +1325,9 @@ struct SiteView: View {
                                 Group {
                                     // An index source (a ranking or list site) names titles; other sources play them.
                                     if isIndex {
-                                        Button { store.searchVideos(video.name) } label: { PosterCard(video: video) }.cardButton()
+                                        Button { store.searchVideos(video.name) } label: { PosterCard(video: video) }.tmdbCardButton()
                                     } else {
-                                        RouteLink { CatalogDestination(video: video, client: client) } label: { PosterCard(video: video) }.cardButton()
+                                        RouteLink { CatalogDestination(video: video, client: client) } label: { PosterCard(video: video) }.tmdbCardButton()
                                     }
                                 }
                                 .onAppear {

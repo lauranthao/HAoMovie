@@ -259,11 +259,11 @@ struct RecommendationsView: View {
                     ForEach(model.items) { item in
                         switch item.destination {
                         case .search(let keyword):
-                            Button { store.searchVideos(keyword) } label: { PosterCard(recommendation: item) }.cardButton()
+                            Button { store.searchVideos(keyword) } label: { PosterCard(recommendation: item) }.tmdbCardButton()
                         case .detail(let video):
                             RouteLink {
                                 CatalogDestination(video: video, client: CatalogClient(site: loadedSite, origin: config.origin, jarURL: config.spiderURL))
-                            } label: { PosterCard(recommendation: item) }.cardButton()
+                            } label: { PosterCard(recommendation: item) }.tmdbCardButton()
                         }
                     }
                 }
@@ -307,11 +307,7 @@ struct RecommendationsView: View {
         }
         .onDisappear { browser.cancel() }
         .navigationDestination(item: $openedSource) { route in
-            #if os(macOS)
-            route.build().musicBar()
-            #else
             route.build()
-            #endif
         }
     }
 
@@ -349,9 +345,9 @@ struct RecommendationsView: View {
                                 let cover = WatchNowTVCover(title: item.name, detail: item.remarks, poster: item.poster?.url, headers: item.poster?.headers ?? [:])
                                 switch item.destination {
                                 case .search(let keyword):
-                                    Button { store.searchVideos(keyword) } label: { cover }.cardButton()
+                                    Button { store.searchVideos(keyword) } label: { cover }.tmdbCardButton()
                                 case .detail(let video):
-                                    RouteLink { CatalogDestination(video: video, client: client) } label: { cover }.cardButton()
+                                    RouteLink { CatalogDestination(video: video, client: client) } label: { cover }.tmdbCardButton()
                                 }
                             }
                     }
@@ -485,9 +481,9 @@ struct RecommendationsView: View {
                 ForEach(browser.videos) { video in
                     Group {
                         if isIndex {
-                            Button { store.searchVideos(video.name) } label: { PosterCard(video: video) }.cardButton()
+                            Button { store.searchVideos(video.name) } label: { PosterCard(video: video) }.tmdbCardButton()
                         } else {
-                            RouteLink { CatalogDestination(video: video, client: client) } label: { PosterCard(video: video) }.cardButton()
+                            RouteLink { CatalogDestination(video: video, client: client) } label: { PosterCard(video: video) }.tmdbCardButton()
                         }
                     }
                     .onAppear {

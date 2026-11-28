@@ -8,7 +8,9 @@
 		5DF866DE71ACF7F4B823F81A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIcons.swift; sourceTree = "<group>"; };
 		FF24CDFDE92B86D9971DAE03 = {isa = PBXBuildFile; fileRef = 5DF866DE71ACF7F4B823F81A; };
 		7363ED8ABC74F11F185D8CCF = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheSettingsView.swift; sourceTree = "<group>"; };
+		0269BFB42BC7EC02E5F2A252 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogDanmakuView.swift; sourceTree = "<group>"; };
 		671D94FAA5F26AA481AE8A41 = {isa = PBXBuildFile; fileRef = 7363ED8ABC74F11F185D8CCF; };
+		08467FDBFD90CD48BB76107D = {isa = PBXBuildFile; fileRef = 0269BFB42BC7EC02E5F2A252; };
 		A22B3086F6522C38A8B3A495 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogPlaybackActions.swift; sourceTree = "<group>"; };
 		7B4D288740175B995BE52E78 = {isa = PBXBuildFile; fileRef = A22B3086F6522C38A8B3A495; };
 		76EAD65FB34C1B1C960712E4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudDriveView.swift; sourceTree = "<group>"; };
@@ -22,7 +24,9 @@
 		6D685232F21139FC9FD83162 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigCenterView.swift; sourceTree = "<group>"; };
 		D4840B6F9DA480A9FFAB2BEC = {isa = PBXBuildFile; fileRef = 6D685232F21139FC9FD83162; };
 		A034B457A8C800CA5A6A6B92 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DLNACast.swift; sourceTree = "<group>"; };
+		10E0F48A0C5894EE3A1FA356 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuServiceSettingsView.swift; sourceTree = "<group>"; };
 		513EABECC0A55883519C7274 = {isa = PBXBuildFile; fileRef = A034B457A8C800CA5A6A6B92; };
+		12EFCEF3C4647D7E4A966820 = {isa = PBXBuildFile; fileRef = 10E0F48A0C5894EE3A1FA356; };
 		E8075CE547652D2FBAE18288 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuSettingsView.swift; sourceTree = "<group>"; };
 		94C11D4514E14B8716D68E9E = {isa = PBXBuildFile; fileRef = E8075CE547652D2FBAE18288; };
 		990D36CDBD73FAEA65CFFB9F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuView.swift; sourceTree = "<group>"; };
@@ -202,7 +206,9 @@
 		00B1CB7CAA7A4C5530C74EA2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DandanplayCredentials.swift; sourceTree = "<group>"; };
 		4F9F8A2DC43A4A1B20892289 = {isa = PBXBuildFile; fileRef = 00B1CB7CAA7A4C5530C74EA2; };
 		4D3A763186C6B2E78616E317 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Danmaku.swift; sourceTree = "<group>"; };
+		3B30C09CBA517366CDCF1BA1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuResolver.swift; sourceTree = "<group>"; };
 		603CDBFCBB2B396A291FD11B = {isa = PBXBuildFile; fileRef = 4D3A763186C6B2E78616E317; };
+		B0F68835A48A96FFD84BF537 = {isa = PBXBuildFile; fileRef = 3B30C09CBA517366CDCF1BA1; };
 		58538267784B58ED229557DF = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuService.swift; sourceTree = "<group>"; };
 		7691CB05B7F904097F2BDB78 = {isa = PBXBuildFile; fileRef = 58538267784B58ED229557DF; };
 		2D5C08F2D9CE694213F3956E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashStreams.swift; sourceTree = "<group>"; };
@@ -264,7 +270,9 @@
 		E49FBDFD406BCB2AFC52D69E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HuyaLiveChat.swift; sourceTree = "<group>"; };
 		EFA5ADA7F08CE8DACA4AF84D = {isa = PBXBuildFile; fileRef = E49FBDFD406BCB2AFC52D69E; };
 		F5E21D1565A5CEC893D2493F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedFilesSync.swift; sourceTree = "<group>"; };
+		CDE11DF51CF198D4AF1124D3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkRenewal.swift; sourceTree = "<group>"; };
 		2B06F89008B404B40F6CD5EC = {isa = PBXBuildFile; fileRef = F5E21D1565A5CEC893D2493F; };
+		DE789DA58B36D74959386E25 = {isa = PBXBuildFile; fileRef = CDE11DF51CF198D4AF1124D3; };
 		4325DEC241591D79F7A22C56 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassSupport.swift; sourceTree = "<group>"; };
 		DF73A1F6BB8BF866F15D9349 = {isa = PBXBuildFile; fileRef = 4325DEC241591D79F7A22C56; };
 		D9B05F0B10B349AC74588B5A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiteSites.swift; sourceTree = "<group>"; };
@@ -488,6 +496,7 @@
 			children = (
 				5DF866DE71ACF7F4B823F81A,
 				7363ED8ABC74F11F185D8CCF,
+				0269BFB42BC7EC02E5F2A252,
 				A22B3086F6522C38A8B3A495,
 				76EAD65FB34C1B1C960712E4,
 				878E9E63EC9164A4CAE110FF,
@@ -495,6 +504,7 @@
 				046BFB932D41F6F3E2918BF1,
 				6D685232F21139FC9FD83162,
 				A034B457A8C800CA5A6A6B92,
+				10E0F48A0C5894EE3A1FA356,
 				E8075CE547652D2FBAE18288,
 				990D36CDBD73FAEA65CFFB9F,
 				E330CCB17B3F6F8B137DDDA5,
@@ -604,6 +614,7 @@
 				F3DD65A9D8FBF9C9203ADCC8,
 				00B1CB7CAA7A4C5530C74EA2,
 				4D3A763186C6B2E78616E317,
+				3B30C09CBA517366CDCF1BA1,
 				58538267784B58ED229557DF,
 				2D5C08F2D9CE694213F3956E,
 				1B7686FE566EF3DEAE2D8E28,
@@ -636,6 +647,7 @@
 				43D1E53C6D122AABBF434E71,
 				E49FBDFD406BCB2AFC52D69E,
 				F5E21D1565A5CEC893D2493F,
+				CDE11DF51CF198D4AF1124D3,
 				4325DEC241591D79F7A22C56,
 				D9B05F0B10B349AC74588B5A,
 				C1FE6257BFB64E85C5B15D70,
@@ -778,6 +790,7 @@
 			files = (
 				FF24CDFDE92B86D9971DAE03,
 				671D94FAA5F26AA481AE8A41,
+				08467FDBFD90CD48BB76107D,
 				7B4D288740175B995BE52E78,
 				8298BF2FE789457DE9421959,
 				BCFFD643C2B22CAFD8622F75,
@@ -785,6 +798,7 @@
 				835EE4C9703CE332E3A6E50B,
 				D4840B6F9DA480A9FFAB2BEC,
 				513EABECC0A55883519C7274,
+				12EFCEF3C4647D7E4A966820,
 				94C11D4514E14B8716D68E9E,
 				8166166261FFDC21448E87C1,
 				2A76D045CC89778FB6167222,
@@ -863,6 +877,7 @@
 				45421CA077E091C54787EADB,
 				4F9F8A2DC43A4A1B20892289,
 				603CDBFCBB2B396A291FD11B,
+				B0F68835A48A96FFD84BF537,
 				7691CB05B7F904097F2BDB78,
 				F78EC70D96D4B3547D4EB65F,
 				E355462CF64B5FFAE3389E8C,
@@ -894,6 +909,7 @@
 				3237D51B0F9235A1E15E2700,
 				EFA5ADA7F08CE8DACA4AF84D,
 				2B06F89008B404B40F6CD5EC,
+				DE789DA58B36D74959386E25,
 				DF73A1F6BB8BF866F15D9349,
 				DD1EEA4EA732601BBA8A1FE1,
 				AEB6428814E820850C10712C,

@@ -268,7 +268,7 @@ struct MobilePlayerView: View {
                 .danmakuListPresentation().environment(store)
         }
         .sheet(isPresented: $showsDanmakuSettings) {
-            DanmakuUnavailableView().playerSheet().environment(store)
+            CatalogDanmakuSettingsView(model: session.catalogDanmaku, channelName: channel.name).playerSheet().environment(store)
         }
         .sheet(isPresented: $showsSkip) { EpisodeSkipSettingsView(session: session).playerSheet().environment(store) }
     }

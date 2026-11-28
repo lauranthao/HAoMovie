@@ -589,8 +589,6 @@ struct FavoritesView: View {
         case .video: L10n.text("Films")
         case .episode: L10n.text("Saved Episodes")
         case .cloud: L10n.text("Cloud Files")
-        // FavoriteKind still declares .music, but no favorite can be one in this app.
-        default: L10n.text("Favorites")
         }
     }
 

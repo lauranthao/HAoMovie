@@ -41,8 +41,6 @@ struct RootView: View {
     #if os(macOS)
     /// Pushed pages in the detail column. Cleared on section change: the stack keeps them when its root is replaced.
     @State private var detailPath = NavigationPath()
-    @State private var nowPlayingShown = false
-    @State private var hidesToolbar = false
     #if os(macOS)
     @State private var columns: NavigationSplitViewVisibility = .all
     /// What the viewer had before the reader folded the sidebar away.
@@ -63,13 +61,8 @@ struct RootView: View {
         // The iPad's sidebar, in the order set in Settings > Edit Tab Bar (#427).
         return PhoneTabs.sidebar(stored: storedTabs, hiding: store.hiddenSections)
         #else
-        let sections = [AppSection.home, .discover, .live, .manga, .novels, .search, .sites, .history, .favorites, .downloads, .settings]
+        let sections = [AppSection.home, .discover, .live, .manga, .novels, .search, .sites, .files, .history, .favorites, .downloads, .settings]
             .filter { !store.hiddenSections.contains($0) }
-        #if os(tvOS)
-        // Where the remote already goes to change section, so the song is one move away from anywhere.
-        // Before tvOS 27 the sidebar has no header for the Now Playing card.
-        if store.music.track != nil, !MusicSidebarNowPlaying.inSidebarHeader { return [.nowPlaying] + sections }
-        #endif
         return sections
         #endif
     }
@@ -90,10 +83,9 @@ struct RootView: View {
                 MacSidebar()
                     .navigationSplitViewColumnWidth(min: 190, ideal: 216, max: 260)
             } detail: {
-                // The music bar floats over every page while a song is loaded, as in Music.
                 // The stack stays put across sections. Rebuilding it resets the sidebar column, so a
                 // section change collapsed the sidebar while the new page was still a placeholder.
-                NavigationStack(path: $detailPath) { content(store.section).musicBar().routeDestinations() }
+                NavigationStack(path: $detailPath) { content(store.section).routeDestinations() }
                     .environment(\.openRoute, RouteOpener { detailPath.append($0) })
                     .overlay { ThemedTitleBand() }
             }
@@ -101,24 +93,6 @@ struct RootView: View {
             .onChange(of: store.hidesSidebar) { _, hide in
                 if hide { columnsBefore = columns }
                 withAnimation(.smooth(duration: 0.3)) { columns = hide ? .detailOnly : columnsBefore }
-            }
-            .overlay {
-                if nowPlayingShown { MusicMacNowPlaying().ignoresSafeArea().transition(.move(edge: .bottom)) }
-            }
-            .background { NowPlayingWindowChrome(active: hidesToolbar, store: store) }
-            .background { MusicMiniPlayerTrigger() }
-            .onChange(of: store.music.presentsPlayer && store.music.track != nil) { _, show in
-                // Hiding the toolbar moves the page under it. The player slides up over the window
-                // first and the toolbar goes once it is covered; closing brings the toolbar back
-                // before the player slides away.
-                if show {
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.92)) { nowPlayingShown = true } completion: {
-                        if nowPlayingShown { hidesToolbar = true }
-                    }
-                } else {
-                    hidesToolbar = false
-                    withAnimation(.spring(response: 0.4, dampingFraction: 1)) { nowPlayingShown = false }
-                }
             }
             #else
             // The system tab bar on every size class: iOS 26 floats it over content and
@@ -129,9 +103,6 @@ struct RootView: View {
         .onChange(of: store.section) { _, section in
             if section != .search { store.searchModel.suspend() }
         }
-        #if os(tvOS)
-        .fullScreenCover(isPresented: Binding(get: { store.music.presentsPlayer }, set: { store.music.presentsPlayer = $0 })) { MusicPlayerScreen() }
-        #endif
         .modifier(PlayerPresentation(playing: $store.playing))
         #if os(tvOS) || os(macOS)
         // What another device sent, while it opens.
@@ -174,14 +145,6 @@ struct RootView: View {
     private var platformTabs: some View {
         rootTabs
             #if os(tvOS)
-            .musicSidebarHeader()
-            // Now Playing is not a page: choosing it opens the full-screen player over the section
-            // the viewer was in. The sidebar selects on a click, not on focus, so passing it opens nothing.
-            .onChange(of: store.section) { previous, section in
-                guard section == .nowPlaying else { return }
-                store.section = previous == .nowPlaying ? .music : previous
-                store.music.presentsPlayer = true
-            }
             // tvOS 17 and 18: a section in More opens there, whether a button or the Now Playing tab moved it in.
             .onChange(of: store.section) { _, section in openInMore(section) }
             .onChange(of: tvMore) { _, more in
@@ -283,7 +246,7 @@ struct RootView: View {
 
     @ViewBuilder private func tabLabel(_ item: AppSection) -> some View {
         #if os(tvOS)
-        if item == .nowPlaying { MusicTabLabel() } else { Label(item.title, systemImage: item.icon) }
+        Label(item.title, systemImage: item.icon)
         #else
         // Only the title changes, so the tab bar updates in place; VoiceOver still reads the name.
         Label { Text(phoneTabs && !showsTabLabels ? "" : item.title) } icon: { Image(systemName: item.icon) }
@@ -605,11 +568,7 @@ extension View {
 private struct MacRouteDestinations: ViewModifier {
     @Environment(\.openRoute) private var openRoute
     func body(content: Content) -> some View {
-        #if os(macOS)
-        content.navigationDestination(for: Route.self) { $0.build().musicBar().environment(\.openRoute, openRoute) }
-        #else
         content.navigationDestination(for: Route.self) { $0.build().environment(\.openRoute, openRoute) }
-        #endif
     }
 }
 #endif

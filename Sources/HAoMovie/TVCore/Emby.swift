@@ -265,7 +265,7 @@ public actor Emby {
         let device = "Mac"
         #endif
         let version = ErrorReports.bundleValue("CFBundleShortVersionString")
-        var fields = [#"Client="Yingxia""#, #"Device="\#(device)""#, #"DeviceId="\#(deviceID)""#,
+        var fields = [#"Client="HAoMovie""#, #"Device="\#(device)""#, #"DeviceId="\#(deviceID)""#,
                       #"Version="\#(version)""#]
         if let token { fields.append(#"Token="\#(token)""#) }
         let authorization = "MediaBrowser " + fields.joined(separator: ", ")

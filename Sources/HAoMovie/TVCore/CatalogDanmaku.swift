@@ -464,7 +464,7 @@ public struct CatalogDanmakuClient: Sendable {
         parts.queryItems = query.isEmpty ? nil : query
         var request = URLRequest(url: parts.url!, timeoutInterval: timeout)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Yingxia (danmaku; https://www.getmegaportal.com)", forHTTPHeaderField: "User-Agent")
+        request.setValue("HAoMovie (danmaku)", forHTTPHeaderField: "User-Agent")
         if DandanplayCredentials.isOfficial(request.url!) {
             guard let credentials else {
                 throw TVError.unsupported(L10n.text("This build is missing its Dandanplay API configuration."))

@@ -128,6 +128,9 @@ struct PlaybackView: View {
             #if DEBUG
             if UserDefaults.standard.bool(forKey: "qaPlaybackProbe") {
                 VStack {
+                    Text(session.catalogDanmaku.automaticState)
+                        .accessibilityIdentifier("player.qa.danmaku")
+                        .accessibilityValue("\(session.danmaku.count)")
                     Text("Playback position").accessibilityIdentifier("player.qa.position")
                         .accessibilityValue("\(session.position)")
                     Text("Playback paused").accessibilityIdentifier("player.qa.paused")
@@ -220,6 +223,8 @@ struct PlaybackView: View {
         }
         .onAppear { watch?.opened(session) }
         #endif
+        .onChange(of: showsDanmaku) { _, value in session.catalogDanmaku.enabled = value }
+        .onChange(of: session.catalogDanmaku.enabled) { _, value in showsDanmaku = value }
         .onDisappear {
             hideTask?.cancel(); store.cancelEpisodeSelection()
             #if os(iOS)
@@ -260,8 +265,12 @@ struct PlaybackView: View {
         step.map { EpisodeAction(name: $0.name, busy: $0.busy, channel: $0.channel, play: $0.go) }
     }
 
-    /// Finding danmaku by hand is not available: HAo Movie has no danmaku lookup service.
-    private var danmakuFinder: (() -> AnyView)? { nil }
+    /// Finding danmaku by hand from the player's Danmaku menu (#1089). None for live channels: their comments are the room's.
+    private var danmakuFinder: (() -> AnyView)? {
+        guard !session.isLive else { return nil }
+        let model = session.catalogDanmaku, name = channel.name
+        return { AnyView(CatalogDanmakuSettingsView(model: model, channelName: name)) }
+    }
 
     /// The video's lines and episodes for the player's Episodes menu and info-panel tab: nil for one episode.
     private var episodeChoices: EpisodeChoices? {
@@ -307,7 +316,7 @@ struct PlaybackView: View {
                 .danmakuListPresentation()
         }
         .sheet(isPresented: $showsDanmakuSettings) {
-            DanmakuUnavailableView().playerSheet()
+            CatalogDanmakuSettingsView(model: session.catalogDanmaku, channelName: channel.name).playerSheet()
         }
     }
 
@@ -1801,7 +1810,7 @@ private struct DesktopPlaybackView: View {
                 .danmakuListPresentation()
         }
         .sheet(isPresented: $showsDanmakuSettings) {
-            DanmakuUnavailableView().playerSheet()
+            CatalogDanmakuSettingsView(model: session.catalogDanmaku, channelName: channel.name).playerSheet()
         }
         .sheet(isPresented: $showsSkip) { EpisodeSkipSettingsView(session: session).environment(store) }
         .onDisappear { idle.detach(); tvBrowser.stop(); CastController.shared.detach() }
@@ -2179,6 +2188,8 @@ extension Store {
     }
     session.history = store.playbackHistory
     session.skipDefaults = store.playbackDefaults
+    session.catalogDanmaku.enabled = UserDefaults.standard.object(forKey: DanmakuPreference.key) == nil
+        || UserDefaults.standard.bool(forKey: DanmakuPreference.key)
     if !resuming { session.start(channel) }
     session.onPlaybackEnded = { [weak store] in
         guard channel.replay == nil, let store, store.autoPlayNext else { return }
@@ -2198,10 +2209,17 @@ extension Store {
     }
     session.upcomingEpisode = { [weak store] in await store?.upcomingEpisode(after: channel) }
     session.onAdvance = { [weak store] next in store?.advance(to: next, from: channel) }
+    // A link that expires while it plays gets a fresh one from the source (`LinkRenewal`).
+    session.renewLink = { [weak store] playing in await store?.renewedChannel(for: playing) }
     session.onUnplayableFile = { [weak store, weak session] in
         guard let store, let other = store.transcodedLine(for: channel) else { return nil }
         store.selectEpisode(other, from: channel) { session?.lineSwitchFailed($0) }
         return other.flag
+    }
+    if let context = channel.historyContext, let next = store.nextEpisode(after: channel),
+       let catalog = store.catalog(for: channel) {
+        session.catalogDanmaku.prefetch(PlaybackHistoryContext(origin: context.origin, site: catalog.client.site,
+            video: catalog.video, episode: next))
     }
 }
 

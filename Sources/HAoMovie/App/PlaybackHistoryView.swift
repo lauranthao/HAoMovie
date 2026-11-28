@@ -388,11 +388,7 @@ private struct HistoryDetailsDestination: ViewModifier {
         content
             .environment(\.openHistoryDetails) { if let openRoute { openRoute($0) } else { route = $0 } }
             .navigationDestination(item: $route) { route in
-                #if os(macOS)
-                route.build().musicBar()
-                #else
                 route.build()
-                #endif
             }
     }
 }

@@ -179,7 +179,7 @@ public struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
         #if os(tvOS)
         URL.cachesDirectory.appending(path: "Downloads")
         #elseif os(macOS)
-        URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? "Yingxia").appending(path: "Downloads")
+        URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? "HAoMovie").appending(path: "Downloads")
         #else
         URL.applicationSupportDirectory.appending(path: "Downloads")
         #endif

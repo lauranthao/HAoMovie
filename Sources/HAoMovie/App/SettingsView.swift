@@ -222,6 +222,7 @@ private enum SettingsNote {
 
 struct FormSettingsView: View {
     @Environment(Store.self) private var store
+    @Environment(Updates.self) private var updates
     /// The recommended sources that take a sign-in, each with its row's subtitle.
     @AppStorage(DanmakuPreference.key) private var showsDanmaku = true
     @AppStorage(VideoEnhancement.upscaleKey) private var upscalesVideo = false
@@ -252,6 +253,8 @@ struct FormSettingsView: View {
     /// A source list, LX Music source or live plugin its menu asked to remove, waiting for the confirmation.
     @State private var searchQuery = ""
     @State private var searching = false
+    /// What the cloud drives show: how many are signed in.
+    @State private var cloudSummary = ""
     /// The row a search result asked for, scrolled to once the page shows again.
     @State private var jumpTarget: String?
 
@@ -385,6 +388,38 @@ struct FormSettingsView: View {
                 #endif
             } footer: {
                 if let message = store.importError ?? store.notice { Text(message) }
+            }
+
+            // Comic and book source lists are added with Add Subscription too, but each is listed in
+            // its own kind's section rather than mixed in with the subscriptions (#1261), and managed and removed there.
+            if !MangaStore.shared.repositories.isEmpty {
+                Section {
+                    let sources = MangaStore.shared.sources
+                    FormLink(symbol: "books.vertical.fill", tint: .orange, title: L10n.text("Comic Sources"),
+                             value: sources.isEmpty ? nil : String(sources.count)) { MangaSourcesView() }
+                        .settingsAnchor(.comicSources)
+                } header: {
+                    Text(L10n.text("Manga"))
+                } footer: {
+                    Text(L10n.text("Manga shows while a Venera comic source list is among your subscriptions."))
+                }
+            }
+
+            if !NovelStore.shared.lists.isEmpty || !NovelStore.shared.offers.isEmpty {
+                Section {
+                    FormLink(symbol: "text.book.closed.fill", tint: .green, title: L10n.text("Book Sources"),
+                             value: L10n.text("%lld on", NovelStore.shared.enabledKeys.count)) { NovelSourcesView() }
+                        .settingsAnchor(.bookSources)
+                } header: {
+                    Text(L10n.text("Novels"))
+                } footer: {
+                    Text(L10n.text("Novels shows while a Legado book source list is among your subscriptions."))
+                }
+            }
+
+            Section(L10n.text("Accounts")) {
+                FormLink(symbol: "externaldrive.fill.badge.person.crop", tint: .brown, title: L10n.text("Cloud Drive Accounts"), value: cloudSummary) { CloudDriveView() }
+                    .settingsAnchor(.cloudDrive)
             }
 
             Section {
@@ -525,6 +560,11 @@ struct FormSettingsView: View {
                     .settingsAnchor(.localCache)
                 FormLink(symbol: "doc.text.magnifyingglass", tint: .gray, title: L10n.text("Diagnostic Logs")) { DiagnosticsView() }
                     .settingsAnchor(.diagnostics)
+                #if os(iOS)
+                // The switches that send something off the device, with their notes, on a page of their own.
+                FormLink(symbol: "hand.raised.fill", tint: .blue, title: L10n.text("Privacy")) { PrivacySettingsView() }
+                    .settingsAnchor(.privacy)
+                #endif
             } header: {
                 Text(L10n.text("Advanced"))
             } footer: {
@@ -538,12 +578,46 @@ struct FormSettingsView: View {
             // As in the Settings app: one-line rows with their state on the right, and the notes under
             // each group instead of a second line and a small link inside the row.
             Section {
+                if Updates.channel != .none {
+                Button {
+                    if updates.available.isEmpty { Task { await updates.check(manual: true) } } else { updates.show() }
+                } label: {
+                    HStack(spacing: 8) {
+                        FormLabel(symbol: "arrow.triangle.2.circlepath", tint: .gray, title: L10n.text("Software Update"))
+                            .foregroundStyle(.primary).lineLimit(1).layoutPriority(1)
+                        Spacer(minLength: 0)
+                        if updates.checking { ProgressView() }
+                        else if !updates.available.isEmpty { NewBadge() }
+                        else { Text(updates.lastChecked == nil ? L10n.text("Check Now") : L10n.text("Up to Date")).foregroundStyle(.secondary).lineLimit(1) }
+                    }
+                }
+                // Rows that act in place still read like the rows around them, not like links.
+                .tint(.primary)
+                .disabled(updates.checking)
+                .settingsAnchor(.softwareUpdate)
+                }
+                if !updates.currentNotes.isEmpty {
+                    Button(action: updates.showCurrentNotes) {
+                        HStack(spacing: 8) {
+                            FormLabel(symbol: "sparkles", tint: .purple, title: L10n.text("What's New in Version %@", updates.displayVersion))
+                                .foregroundStyle(.primary).lineLimit(1)
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.forward").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                        }
+                    }
+                    .tint(.primary)
+                    .settingsAnchor(.releaseNotes)
+                }
                 FormLink(symbol: "doc.plaintext.fill", tint: .gray, title: L10n.text("Open Source Licenses")) { LicensesView() }
                     .id("settings.end")
             } header: {
                 Text(L10n.text("About"))
             } footer: {
                 VStack(alignment: .leading, spacing: 0) {
+                    if Updates.channel != .none {
+                        if let title = updates.availableTitle { Text(title) }
+                        else if let checked = updates.lastChecked { Text(L10n.text("Last checked %@", checked.formatted(date: .abbreviated, time: .shortened))) }
+                    }
                     // The page ends on the copyright, centred, as the hero no longer carries it.
                     Text(Brand.copyright).font(.caption2).foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity).padding(.top, 28)
@@ -615,6 +689,8 @@ struct FormSettingsView: View {
         }
         .settingsForm(L10n.text("Settings"))
         .searchable(text: $searchQuery, isPresented: $searching, prompt: Text(L10n.text("Search settings")))
+        // Refreshed whenever Settings reappears, so a sign-in on the account page shows here.
+        .onAppear { cloudSummary = CloudProvider.summary() }
         .sheet(isPresented: $editingSources) { HiddenSourcesEditor() }
         .sheet(isPresented: $editingLive) { LiveSourcesEditor() }
         // An alert rather than a dialog: a dialog on the row never appeared after a swipe, and on the page it pointed
@@ -647,11 +723,25 @@ struct FormSettingsView: View {
                 Text(L10n.text("HAo Movie")).font(.system(size: 32, weight: .bold, design: .rounded))
                 HStack(spacing: 6) {
                     if let version { Text(version) }
+                    if updates.availableTitle == nil, Updates.channel != .none, updates.lastChecked != nil {
+                        Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
+                        Text(L10n.text("Up to Date"))
+                    }
                 }
                 .font(.footnote.weight(.medium)).foregroundStyle(.secondary)
                 .padding(.horizontal, 12).padding(.vertical, 6)
                 .glassSurface(.regular, in: Capsule())
                 .padding(.top, 10)
+                if let title = updates.availableTitle {
+                    Button(action: updates.show) {
+                        Label(title, systemImage: "gift.fill")
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(Brand.onAccent)
+                            .padding(.horizontal, 18).padding(.vertical, 10)
+                            .background(Brand.accent, in: Capsule())
+                    }
+                    .buttonStyle(PressableStyle())
+                    .padding(.top, 14)
+                }
             }
             .lineLimit(1)
             .frame(maxWidth: .infinity)
@@ -690,7 +780,6 @@ struct FormSettingsView: View {
     private var danmakuNote: String { SettingsNote.danmaku }
     private var upscaleNote: String { VideoEnhancement.upscaleNote }
     private var smoothNote: String { VideoEnhancement.smoothNote }
-    private var tmdbNote: String { SettingsNote.tmdb }
     private var supportNote: String { SettingsNote.support }
     private var errorReportsNote: String { SettingsNote.errorReports }
     private func add() { if canAdd { Task { await store.importSubscription() } } }
@@ -717,15 +806,15 @@ struct FormSettingsView: View {
 }
 
 private enum SettingsSearchTarget: Hashable, Sendable {
-    case account
-    case feedback
-    case telegram
     case subscription(String)
     case hiddenSources
     case hiddenLive
     case arrangeSubscriptions
     case removeSubscriptions
     case addSubscription
+    case comicSources
+    case bookSources
+    case cloudDrive
     case profiles
     case watchNow
     case colorTheme
@@ -748,6 +837,11 @@ private enum SettingsSearchTarget: Hashable, Sendable {
     case smoothMotion
     case localCache
     case diagnostics
+    case privacy
+    case errorReports
+    case softwareUpdate
+    case autoInstallUpdates
+    case releaseNotes
     case licenses
 
     /// The id of its row on the page, which a search result scrolls to. Each setting is drawn once, on the page;
@@ -758,10 +852,6 @@ private enum SettingsSearchTarget: Hashable, Sendable {
         case .language: return "settings.language"
         case .profiles: return "settings.profiles"
         case .licenses: return "settings.end"
-        #if os(iOS)
-        // One row of two tiles on iPhone and iPad.
-        case .telegram: return Self.feedback.anchor
-        #endif
         default: return "settings.search \(self)"
         }
     }
@@ -843,13 +933,6 @@ private extension FormSettingsView {
         let secAdvanced = L10n.text("Advanced")
         let secAbout = L10n.text("About")
 
-        add(.account, title: L10n.text("Sign In"), section: secAccounts, subtitle: L10n.text("Feedback points and Pro codes"),
-            keywords: ["account", "pro", "points", "login", "账号", "登录", "积分", "会员"])
-        add(.feedback, title: L10n.text("Send Feedback"), section: secGeneral, subtitle: L10n.text("Report a problem or share an idea"),
-            keywords: ["feedback", "bug", "issue", "report", "反馈", "建议"])
-        add(.telegram, title: L10n.text("Telegram Group"), section: secGeneral, subtitle: L10n.text("Chat with the developer and other users"),
-            keywords: ["telegram", "tg", "group", "chat", "电报", "群组"])
-
         for entry in store.subscriptions {
             add(.subscription(entry.address), title: entry.title, section: secSubs, subtitle: store.subscriptionValue(entry),
                 keywords: ["subscription", "source", "tvbox", "m3u", "订阅", "源", entry.address])
@@ -874,6 +957,17 @@ private extension FormSettingsView {
         add(.addSubscription, title: L10n.text("Add Subscription"), section: secSubs,
             keywords: ["add", "url", "import", "添加", "导入", "订阅"])
         #endif
+
+        if !MangaStore.shared.repositories.isEmpty {
+            add(.comicSources, title: L10n.text("Comic Sources"), section: L10n.text("Manga"),
+                keywords: ["manga", "comic", "venera", "漫画", "书源"])
+        }
+        if !NovelStore.shared.lists.isEmpty || !NovelStore.shared.offers.isEmpty {
+            add(.bookSources, title: L10n.text("Book Sources"), section: L10n.text("Novels"),
+                keywords: ["novel", "book", "legado", "小说", "书源"])
+        }
+        add(.cloudDrive, title: L10n.text("Cloud Drive Accounts"), section: secAccounts, subtitle: cloudSummary,
+            keywords: ["cloud", "drive", "quark", "baidu", "aliyun", "uc", "115", "webdav", "alist", "网盘", "云盘", "夸克", "百度", "阿里"])
 
         add(.profiles, title: L10n.text("Profiles"), section: secGeneral, subtitle: store.profile.title,
             keywords: ["profile", "user", "switch", "多用户", "档案", "切换"])
@@ -941,13 +1035,28 @@ private extension FormSettingsView {
         add(.diagnostics, title: L10n.text("Diagnostic Logs"), section: secAdvanced,
             keywords: ["log", "diagnostic", "debug", "日志", "诊断"])
         #if os(iOS)
+        // The two switches that send something off the device, with their notes, on a page of their own.
+        add(.privacy, title: L10n.text("Privacy"), section: secAdvanced,
+            keywords: ["privacy", "error", "tmdb", "隐私", "报错", "刮削"])
         #else
         add(.errorReports, title: L10n.text("Send Error Reports"), section: secAdvanced, subtitle: errorReportsNote,
             keywords: ["error", "crash", "report", "privacy", "错误报告", "崩溃", "隐私"])
-        add(.tmdbLookup, title: L10n.text("Look Up Titles on TMDB"), section: secAdvanced, subtitle: tmdbNote,
-            keywords: ["tmdb", "metadata", "poster", "cast", "刮削", "海报", "演员"])
         #endif
 
+        if Updates.channel != .none {
+            add(.softwareUpdate, title: L10n.text("Software Update"), section: secAbout,
+                keywords: ["update", "version", "check", "升级", "更新", "版本"])
+            #if os(macOS)
+            if updates.installer != nil {
+                add(.autoInstallUpdates, title: L10n.text("Install Updates Automatically"), section: secAbout,
+                    keywords: ["auto", "update", "install", "自动更新", "自动安装"])
+            }
+            #endif
+        }
+        if !updates.currentNotes.isEmpty {
+            add(.releaseNotes, title: L10n.text("What's New in Version %@", updates.displayVersion), section: secAbout,
+                keywords: ["release", "notes", "changelog", "what's new", "更新日志"])
+        }
         add(.licenses, title: L10n.text("Open Source Licenses"), section: secAbout,
             keywords: ["license", "open source", "third party", "开源", "协议", "许可"])
 
@@ -1164,6 +1273,23 @@ struct PlaybackSettingsView: View {
                         .settingsSwitch()
                     }
                 }
+            }
+        }
+    }
+}
+
+/// The switch that sends something off the device, with its note, on a page of its own.
+/// Yingxia's page also has the TMDB lookup switch; HAo Movie leaves it out until the TMDB Worker lands.
+struct PrivacySettingsView: View {
+    @AppStorage(ErrorReports.key) private var sendsErrorReports = true
+    var body: some View {
+        SettingsPage(title: L10n.text("Privacy"), symbol: "hand.raised.fill") {
+            SettingsGroup(footer: SettingsNote.errorReports) {
+                Toggle(isOn: $sendsErrorReports) {
+                    FormLabel(symbol: "ladybug.fill", tint: .red, title: L10n.text("Send Error Reports"))
+                }
+                .settingsSwitch()
+                .onChange(of: sendsErrorReports) { _, on in if !on { ErrorReports.shared.discard() } }
             }
         }
     }
@@ -1865,7 +1991,6 @@ struct TVSettingsView: View {
     @AppStorage(PlayOnController.key) private var receivesPlayOn = true
     @AppStorage(PlaybackInfo.key) private var showsPlaybackInfo = false
     @AppStorage(ErrorReports.key) private var sendsErrorReports = true
-    @AppStorage(TMDBMatch.key) private var looksUpTMDB = true
     @AppStorage(CloudSync.enabledKey) private var syncsWithICloud = true
     @State private var skipsIntros = false
 
@@ -1957,7 +2082,6 @@ struct TVSettingsView: View {
                 TVSettingsLink(title: L10n.text("Diagnostic Logs")) { DiagnosticsView() }
                 TVSettingsToggle(title: L10n.text("Send Error Reports"), isOn: $sendsErrorReports)
                     .onChange(of: sendsErrorReports) { _, on in if !on { ErrorReports.shared.discard() } }
-                TVSettingsToggle(title: L10n.text("Look Up Titles on TMDB"), isOn: $looksUpTMDB)
             }
             if updates.available.isEmpty, Updates.channel != .none { updateSection }
             if store.extrasUnlocked { ContributorsSection() }

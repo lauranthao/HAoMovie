@@ -18,6 +18,7 @@ import IOKit.pwr_mgt
 
     /// Upscaling and 60 fps smoothing, drawn over AVKit's picture when switched on in Settings.
     let enhancer: VideoEnhancer
+    let catalogDanmaku = CatalogDanmakuModel()
     #if os(macOS)
     /// Keeps the Mac from dimming, starting the screen saver and locking while a video plays (#565).
     private let displayAwake = DisplayAwake()
@@ -204,9 +205,10 @@ import IOKit.pwr_mgt
     private(set) var errorSymbol = "play.slash.fill"
     /// Bullet comments for the media, when its source has them.
     private var sourceDanmaku: [Danmaku] = []
-    var danmaku: [Danmaku] { sourceDanmaku }
-    var danmakuOpacity: Double { 1 }
-    var danmakuRevision: String { "" }
+    private var usesCatalogDanmaku: Bool { sourceDanmaku.isEmpty || catalogDanmaku.overridesSourceComments }
+    var danmaku: [Danmaku] { usesCatalogDanmaku ? catalogDanmaku.renderedComments : sourceDanmaku }
+    var danmakuOpacity: Double { catalogDanmaku.opacity }
+    var danmakuRevision: String { usesCatalogDanmaku ? catalogDanmaku.renderedRevision : "" }
     var onPlaybackEnded: (() -> Void)?
     /// Plays another line of the same episode when this file can't play here (an MKV original);
     /// returns that line's name, or nil when there is none.
@@ -282,6 +284,10 @@ import IOKit.pwr_mgt
     private var liveRetrying = false
     /// The episode was already asked for again after its server ignored AVPlayer's byte range.
     private var rangeRetried = false
+    /// An episode resolved again by its source, for a fresh link when the one playing expires; set for catalog episodes.
+    var renewLink: (@MainActor (Channel) async -> Channel?)?
+    /// Fresh links for the episodes playing and queued (`LinkRenewal`), by address.
+    private var linkRenewals: [URL: LinkRenewal] = [:]
     /// Whether the episode's link was read by this device after AVPlayer gave up on it, and how (`rescueLink`).
     private var rescueAttempt = PlaybackRescue.Attempt()
     /// When the loopback server behind the episode last listened again (`recoverLoopback`).
@@ -651,6 +657,18 @@ import IOKit.pwr_mgt
             current = error.userInfo[NSUnderlyingErrorKey] as? NSError
         }
         return nil
+    }
+
+    /// Fresh links to the file of `channel`, a catalog episode playing or queued, once its link expires (`LinkRenewal`).
+    private func renewal(for channel: Channel, length: Int?, name: String) -> (@Sendable () async -> CloudStreams.Source?)? {
+        guard renewLink != nil, channel.historyContext != nil, !LiveCatalog.isRoom(channel.url) else { return nil }
+        let renewal = linkRenewals[channel.url] ?? LinkRenewal { [weak self] in
+            guard let fresh = await self?.renewLink?(channel) else { return nil }
+            return (fresh.url, fresh.headers)
+        }
+        if linkRenewals.count > 4 { linkRenewals.removeAll() }
+        linkRenewals[channel.url] = renewal
+        return renewal.renewal(length: length, name: name)
     }
 
     /// The other line could not be resolved either: show why instead of loading forever.
@@ -1369,6 +1387,7 @@ import IOKit.pwr_mgt
         upcomingEpisode = nil; onAdvance = nil; playsOn = { false }; clearBoost()
         stopRescue()
         playing = nil
+        catalogDanmaku.clear()
         externalSubtitles.stop()
         subtitles.follow(nil)
         mediaTracks.follow(nil)
@@ -1443,6 +1462,12 @@ import IOKit.pwr_mgt
         sourceSkips = channel.skips; skipOffer = nil; skippedSource = []; chapters = []
         position = 0; duration = 0
         upcomingAttempted = false
+        // Keep the context even when native comments win, so an explicit service/platform chosen in Settings can
+        // rematch the playing episode. A drive's folder and file names still do not identify a show automatically.
+        let source = channel.historyContext?.sourceKey
+        catalogDanmaku.startAutomatic(channel.historyContext,
+            usesSourceComments: DanmakuSource.has(channel.url) || source == Bilibili.siteKey,
+            allowsAutomatic: source != CloudFiles.sourceKey)
     }
 
     private func restorePositionIfNeeded(_ item: AVPlayerItem) {
