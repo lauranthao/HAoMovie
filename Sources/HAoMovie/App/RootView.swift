@@ -63,7 +63,7 @@ struct RootView: View {
         // The iPad's sidebar, in the order set in Settings > Edit Tab Bar (#427).
         return PhoneTabs.sidebar(stored: storedTabs, hiding: store.hiddenSections)
         #else
-        let sections = [AppSection.home, .discover, .live, .manga, .novels, .search, .sites, .favorites, .history, .downloads, .settings]
+        let sections = [AppSection.home, .discover, .live, .manga, .novels, .search, .sites, .history, .favorites, .downloads, .settings]
             .filter { !store.hiddenSections.contains($0) }
         #if os(tvOS)
         // Where the remote already goes to change section, so the song is one move away from anywhere.

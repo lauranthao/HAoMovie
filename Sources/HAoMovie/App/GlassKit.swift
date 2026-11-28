@@ -1352,8 +1352,10 @@ struct SkeletonBlock: View {
 
 struct PosterSkeletonGrid: View {
     var count = 12
+    var columns: [GridItem] = Layout.posterColumns
+    var rowSpacing: CGFloat = Layout.gridRowSpacing
     var body: some View {
-        LazyVGrid(columns: Layout.posterColumns, spacing: Layout.gridRowSpacing) {
+        LazyVGrid(columns: columns, spacing: rowSpacing) {
             ForEach(0..<count, id: \.self) { _ in
                 VStack(alignment: .leading, spacing: 10) {
                     Color.clear.aspectRatio(2.0 / 3.0, contentMode: .fit).overlay { SkeletonBlock(cornerRadius: 20) }

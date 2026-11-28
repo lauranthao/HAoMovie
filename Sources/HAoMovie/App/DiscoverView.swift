@@ -12,12 +12,18 @@ struct DiscoverView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
+            VStack(alignment: .leading, spacing: 30) {
                 ForEach(DoubanCatalog.Feed.allCases, id: \.self) { feed in
                     feedSection(feed)
                 }
             }
+            #if os(tvOS)
             .pageContainer()
+            #else
+            // As Discover's See All pages: 17-point gutters around the grids.
+            .padding(DiscoverLayout.gutter)
+            .frame(maxWidth: Layout.maxWidth).frame(maxWidth: .infinity)
+            #endif
         }
         .screenBackdrop()
         .screenTitle(L10n.text("Discover"))
@@ -34,36 +40,47 @@ struct DiscoverView: View {
         .task { await model.load() }
     }
 
+    /// A Douban list's grid, as Discover's See All pages draw it.
+    private static var gridColumns: [GridItem] {
+        #if os(tvOS)
+        Array(repeating: GridItem(.fixed(DiscoverLayout.posterWidth), spacing: 55, alignment: .top), count: 6)
+        #else
+        [GridItem(.adaptive(minimum: DiscoverLayout.posterWidth), spacing: DiscoverLayout.spacing, alignment: .leading)]
+        #endif
+    }
+    private static var gridRowSpacing: CGFloat {
+        #if os(tvOS)
+        66
+        #else
+        22
+        #endif
+    }
+
     @ViewBuilder private func feedSection(_ feed: DoubanCatalog.Feed) -> some View {
-        VStack(alignment: .leading, spacing: Layout.headerSpacing) {
-            SectionHeader(title: feed.title)
+        VStack(alignment: .leading, spacing: 0) {
+            // A shelf's heading, as Discover draws it: 16 pt semibold in a 32-point row.
+            Text(feed.title).font(.system(size: DiscoverLayout.heading, weight: .semibold))
+                .frame(maxWidth: .infinity, alignment: .leading).frame(height: DiscoverLayout.headingHeight, alignment: .top)
             let items = model.items[feed] ?? []
             if items.isEmpty, model.loading {
-                PosterSkeletonGrid()
+                PosterSkeletonGrid(columns: Self.gridColumns, rowSpacing: Self.gridRowSpacing)
             } else if items.isEmpty, model.failures[feed] != nil {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(L10n.text("Couldn't load this list.")).foregroundStyle(.secondary)
                     Button(L10n.text("Retry")) { Task { await model.load(feeds: [feed], refresh: true) } }
                 }
             } else {
-                LazyVGrid(columns: Layout.posterColumns, spacing: Layout.gridRowSpacing) {
+                LazyVGrid(columns: Self.gridColumns, spacing: Self.gridRowSpacing) {
                     ForEach(items) { item in
                         Button { open(item) } label: {
-                            PosterCard(name: item.title, poster: item.cover, remarks: remarks(for: item))
+                            DoubanTile(item: item)
                         }
-                        .cardButton()
+                        .tmdbCardButton()
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-    }
-
-    private func remarks(for item: DoubanCatalog.Item) -> String {
-        var parts: [String] = []
-        if let year = item.year { parts.append(String(year)) }
-        if let rating = item.rating { parts.append(String(format: "%.1f", rating)) }
-        return parts.joined(separator: " · ")
     }
 
     private func open(_ item: DoubanCatalog.Item) {
@@ -103,5 +120,52 @@ final class DiscoverModel {
             }
         }
         loaded = true
+    }
+}
+
+/// A Douban title as Discover draws its covers, with the year and Douban's score under it.
+private struct DoubanTile: View {
+    let item: DoubanCatalog.Item
+    var body: some View {
+        #if os(tvOS)
+        VStack(spacing: 5) {
+            PosterImage(url: item.cover).frame(width: DiscoverLayout.posterWidth, height: DiscoverLayout.posterWidth * 1.5)
+            VStack(spacing: 0) {
+                Text(item.title).font(.system(size: DiscoverLayout.caption))
+                Text(item.caption.isEmpty ? " " : item.caption).font(.system(size: DiscoverLayout.secondary, weight: .medium)).foregroundStyle(.white.opacity(0.5))
+            }.lineLimit(1).cardCaption()
+        }.frame(width: DiscoverLayout.posterWidth)
+        #else
+        VStack(alignment: .leading, spacing: 0) {
+            Color.clear.aspectRatio(2.0 / 3, contentMode: .fit)
+                .overlay { PosterImage(url: item.cover) }
+                .posterClip(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.primary.opacity(0.1), lineWidth: 0.5) }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.title).font(.system(size: DiscoverLayout.caption)).lineLimit(1)
+                Text(item.caption).lineLimit(1)
+                    .font(.system(size: DiscoverLayout.secondary, design: .rounded)).foregroundStyle(.primary.opacity(0.56))
+            }.frame(maxWidth: .infinity, alignment: .leading).frame(height: DiscoverLayout.captionHeight)
+        }
+        .accessibilityElement(children: .combine)
+        #endif
+    }
+}
+
+private extension DoubanCatalog.Item {
+    var caption: String {
+        [year.map(String.init), rating.map { L10n.text("Douban") + " " + $0.formatted(.number.precision(.fractionLength(1))) }]
+            .compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
+private extension View {
+    /// A card button for Discover's tiles: plain on iPhone, iPad and Mac, the focus plate on Apple TV.
+    @ViewBuilder func tmdbCardButton() -> some View {
+        #if os(tvOS)
+        cardButton()
+        #else
+        buttonStyle(.plain)
+        #endif
     }
 }

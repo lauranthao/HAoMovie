@@ -89,8 +89,7 @@ struct MobilePlayerView: View {
     @State private var tapTask: Task<Void, Never>?
     /// Sliding sideways across the picture: where the slide began.
     @State private var swipeStart: Double?
-    /// Sliding up or down on the left sets the brightness, from where the slide began.
-    /// (The volume slide is gone with the hidden system-volume slider.)
+    /// Sliding up or down: the brightness on the left, the volume on the right, from where the slide began.
     @AppStorage(PictureLevel.key) private var slidesLevels = true
     /// Off, as it starts (#1745): two taps anywhere play or pause, and the sides don't skip.
     @AppStorage(PictureDoubleTap.key) private var doubleTapSkips = PictureDoubleTap.standard
@@ -98,9 +97,13 @@ struct MobilePlayerView: View {
     @AppStorage(LockButtonSide.key) private var lockSide = LockButtonSide.left.rawValue
     @AppStorage(PlaybackTags.key) private var showsTags = true
     @AppStorage(PictureInPicturePreference.key) private var allowsPictureInPicture = true
-    @State private var level: (start: Double, value: Double)?
+    @State private var level: (volume: Bool, start: Double, value: Double)?
     @State private var leveling = false
     @State private var levelTask: Task<Void, Never>?
+    /// The system's volume slider, on screen only around a slide, which keeps the system's own volume overlay away.
+    @State private var systemVolume = MusicVolumeSlider.SystemSlider()
+    @State private var mountsVolume = false
+    @State private var keyboardVolume: Double?
     /// The screen's brightness before the first slide changed it, put back when the player closes.
     @State private var brightnessBefore: CGFloat?
     /// Full screen, the controls and every touch on the picture can be locked, so a hand on the screen doesn't skip or
@@ -162,6 +165,10 @@ struct MobilePlayerView: View {
             // it, so the controls never came back and there was no way out but leaving the app (#729, #766, #767).
             .transaction { $0.animation = nil }
             .accessibilityHidden(true)
+            if mountsVolume {
+                MusicVolumeSlider.HiddenVolumeView(system: systemVolume).frame(width: 1, height: 1).opacity(0.01).allowsHitTesting(false)
+                    .onAppear { if let keyboardVolume { systemVolume.set(keyboardVolume) } }
+            }
             boostLabel
             skippedLabel
             swipeLabel
@@ -288,9 +295,22 @@ struct MobilePlayerView: View {
             session.setBoost(Float(started.rate))
             hideChrome()
         case .endBoost: if keyboardBoost { endBoost() }
-        case .volume:
-            // The hidden system-volume slider is gone: hardware volume keys are left to the system.
-            break
+        case .volume(let delta):
+            // Use the same system volume as a swipe, including the first press before MPVolumeView is mounted.
+            let current = level.flatMap { $0.volume ? $0.value : nil } ?? Double(AVAudioSession.sharedInstance().outputVolume)
+            let value = min(1, max(0, current + delta))
+            keyboardVolume = value
+            mountsVolume = true
+            systemVolume.set(value)
+            session.player.isMuted = false
+            level = (true, current, value)
+            hideChrome()
+            levelTask?.cancel()
+            levelTask = Task {
+                try? await Task.sleep(for: .seconds(0.8))
+                guard !Task.isCancelled else { return }
+                level = nil; mountsVolume = false; keyboardVolume = nil
+            }
         case .waitForHold: break
         }
         nowPlaying.update(title: channel.name, session: session)
@@ -374,7 +394,7 @@ struct MobilePlayerView: View {
     private func clearLabels() {
         skippedTask?.cancel(); skipped = nil
         guard !leveling else { return }
-        levelTask?.cancel(); level = nil
+        levelTask?.cancel(); level = nil; mountsVolume = false
     }
 
     private var screen: UIScreen? { UIApplication.shared.appWindowScene?.screen }
@@ -391,12 +411,14 @@ struct MobilePlayerView: View {
             hideChrome()
         case .began(let slide):
             cancelPendingTap()
-            // Only the brightness slide is kept: the volume slide's hidden system slider is gone.
-            guard slide == .brightness, screen != nil else { return }
-            let start = Double(screen?.brightness ?? 0)
-            if brightnessBefore == nil { brightnessBefore = screen?.brightness }
+            let volume = slide == .volume
+            guard volume || screen != nil else { return }
+            keyboardVolume = nil
+            let start = volume ? Double(AVAudioSession.sharedInstance().outputVolume) : Double(screen?.brightness ?? 0)
+            if !volume, brightnessBefore == nil { brightnessBefore = screen?.brightness }
             levelTask?.cancel()
-            level = (start, start)
+            if volume { mountsVolume = true }
+            level = (volume, start, start)
             leveling = true
             hideChrome()
         case .moved(let moved, let size):
@@ -406,7 +428,7 @@ struct MobilePlayerView: View {
             } else if leveling, var level {
                 level.value = PictureLevel.value(from: level.start, moved: moved.height, height: size.height)
                 self.level = level
-                screen?.brightness = CGFloat(level.value); PlayerBrightness.choose(level.value)
+                if level.volume { systemVolume.set(level.value) } else { screen?.brightness = CGFloat(level.value); PlayerBrightness.choose(level.value) }
             }
         case .ended:
             if swipeStart != nil {
@@ -419,17 +441,17 @@ struct MobilePlayerView: View {
                 levelTask = Task {
                     try? await Task.sleep(for: .seconds(0.8))
                     guard !Task.isCancelled else { return }
-                    level = nil
+                    level = nil; mountsVolume = false
                 }
             }
         }
     }
 
-    /// The brightness a slide up or down sets, in the middle.
+    /// The brightness or the volume a slide up or down sets, in the middle.
     @ViewBuilder private var levelLabel: some View {
         if let level {
             HStack(spacing: 12) {
-                Image(systemName: "sun.max.fill")
+                Image(systemName: level.volume ? (level.value <= 0 ? "speaker.slash.fill" : "speaker.wave.2.fill") : "sun.max.fill")
                     .frame(width: 26)
                 Capsule().fill(.white.opacity(0.3)).frame(width: 150, height: 6)
                     .overlay(alignment: .leading) { Capsule().fill(.white).frame(width: 150 * level.value, height: 6) }
@@ -442,7 +464,7 @@ struct MobilePlayerView: View {
             .allowsHitTesting(false)
             .transition(.opacity)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(L10n.text("Brightness"))
+            .accessibilityLabel(L10n.text(level.volume ? "Volume" : "Brightness"))
             .accessibilityValue(Text(level.value, format: .percent.precision(.fractionLength(0))))
             .accessibilityIdentifier("player.level")
         }
@@ -1486,7 +1508,7 @@ private struct PictureGestures: UIViewRepresentable {
     let tap: (CGFloat, CGFloat) -> Void
     let hold: (Hold) -> Void
     let swipe: (Swipe) -> Void
-    /// Whether slides up or down set the brightness.
+    /// Whether slides up or down set the brightness and the volume.
     var levels = true
     /// Pinched out (true) or in, as in YouTube: fill the screen or fit the picture.
     let pinch: (Bool) -> Void
@@ -2229,6 +2251,31 @@ private struct LockButtonStyle: ViewModifier {
         guard observer == nil else { return }
         observer = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { chosen = nil }
+        }
+    }
+}
+
+/// The hidden system-volume slider the video player's slides up and down use (Yingxia's
+/// `MusicVolumeSlider`, MusicNowPlayingScreen.swift:246; only its two helpers — the music player's
+/// own slider UI is not ported, HAoMovie has no music Now Playing screen). A hidden MPVolumeView
+/// carries the changes, as players do, and while it is on screen the system's volume overlay stays away.
+private enum MusicVolumeSlider {
+    /// The system slider inside the hidden volume view, once it exists.
+    @MainActor final class SystemSlider {
+        weak var slider: UISlider?
+        func set(_ value: Double) { slider?.setValue(Float(value), animated: false); slider?.sendActions(for: .valueChanged) }
+    }
+
+    /// Also carries the player's slides up and down for the volume.
+    struct HiddenVolumeView: UIViewRepresentable {
+        let system: SystemSlider
+        func makeUIView(context: Context) -> MPVolumeView {
+            let view = MPVolumeView(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
+            system.slider = view.subviews.compactMap { $0 as? UISlider }.first
+            return view
+        }
+        func updateUIView(_ view: MPVolumeView, context: Context) {
+            if system.slider == nil { system.slider = view.subviews.compactMap { $0 as? UISlider }.first }
         }
     }
 }

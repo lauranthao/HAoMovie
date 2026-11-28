@@ -2,6 +2,14 @@
 
 HAo Movie — 影视应用，基于映匣（Yingxia, [jo32/tvbox-silicon](https://github.com/jo32/tvbox-silicon)）改写：以映匣的 Swift + SwiftUI + AVPlayer 代码为底座，按 HAo 的需要删改（见下），不是从零重写。本仓库同样以 **GPL-3.0** 开源（见 `LICENSE`）。
 
+- 当前版本：0.1.0 build 9（2026-11-28）
+
+## 版本历史
+
+- **0.1.0 build 9（2026-11-28）：** 发现页按映匣的豆瓣数值重做（2 列海报墙、116 最小列宽、标题 13pt/副标题 11pt、caption "年份 · 豆瓣 x.x"）；历史/收藏顺序按映匣调回；播放器右滑音量按映匣补回来。
+- **0.1.0 build 8（2026-11-28）：** 欢迎页按映匣（云盘 + 添加订阅，不自动装源）+ 漫画小说做成可见可用（QuickJS 运行时 + Venera/Legado + 12 个漫画/小说页）。
+- **0.1.0 build 6 及更早：** 见 git 历史。
+
 ## 参照与许可
 
 - 底座：映匣 Yingxia — Swift + SwiftUI + AVPlayer，原生 TVBox 播放器（直播 + 点播片库 + 全源搜索），GPL-3.0。
@@ -10,7 +18,7 @@ HAo Movie — 影视应用，基于映匣（Yingxia, [jo32/tvbox-silicon](https:
 
 ## 相对映匣删掉的东西（本版没有）
 
-- 音乐 / 漫画 / 小说模块；JAR / DEX 插件运行时（只支持 TVBox JSON type 1/4 与 M3U，jar 源不支持）。
+- 音乐模块；JAR / DEX 插件运行时（只支持 TVBox JSON type 1/4 与 M3U，jar 源不支持）。漫画 / 小说模块在 build 8 已按映匣加上（QuickJS 运行时 + Venera/Legado）。
 - 云盘与投屏都在：云盘（Cloud Files / AList / 百度 / 115 / 123 / Quark / 天翼 / WebDAV / 飞牛 / 光芽）与投屏（DLNA、PlayOn）保留，云盘账号在设置里登录。
 - TMDB 富化（海报/剧照/演职员/标题 logo 一律用源站自己的图）；Bilibili / 抖音账号登录；Updates（Sparkle）与 Announcements。
 - 弹幕查找服务（Dandanplay 未接，无 AppId）：源站自带弹幕与直播间弹幕仍可显示，弹幕样式设置保留。
