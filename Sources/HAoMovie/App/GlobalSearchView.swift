@@ -42,8 +42,7 @@ struct GlobalSearchView: View {
                 }
             } else {
                 Section {
-                    Text(L10n.text("Add a subscription in Settings to search its sources."))
-                        .foregroundStyle(.secondary)
+                    SearchNeedsSubscriptionView()
                 }
             }
             if model.keyword.isEmpty, !history.isEmpty {

@@ -53,6 +53,30 @@
 		5CEE7EE6392F076A358CB6A1 = {isa = PBXBuildFile; fileRef = 9D0870ADECA82A3B12F8230D; };
 		A90A7578ACF81D7983658751 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		6DB8EEB7E2CD8D5B7A976B16 = {isa = PBXBuildFile; fileRef = A90A7578ACF81D7983658751; };
+		EBF4CFF57632E3A220425620 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
+		D0A56AD6CAC89C28379FD62A = {isa = PBXBuildFile; fileRef = EBF4CFF57632E3A220425620; };
+		FA67B300F82AF49050385E78 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaModels.swift; sourceTree = "<group>"; };
+		04E8E59CA83428565B3EDF8C = {isa = PBXBuildFile; fileRef = FA67B300F82AF49050385E78; };
+		9A811B279A017000B04C5FBB = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaSpreads.swift; sourceTree = "<group>"; };
+		1ACEF126A99DB18AAA3BC312 = {isa = PBXBuildFile; fileRef = 9A811B279A017000B04C5FBB; };
+		5565EBA279DF3BD184ABDAE5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaImageWork.swift; sourceTree = "<group>"; };
+		CE78BCA1F145ECFA2DF03E11 = {isa = PBXBuildFile; fileRef = 5565EBA279DF3BD184ABDAE5; };
+		B467FB829B1AD9C5FC84CE44 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaLibrary.swift; sourceTree = "<group>"; };
+		03F32AE3346636E88FFEA7E2 = {isa = PBXBuildFile; fileRef = B467FB829B1AD9C5FC84CE44; };
+		C64C6DEB797431106B83CFE0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaSources.swift; sourceTree = "<group>"; };
+		90F6690A7F2DC7036FFD499A = {isa = PBXBuildFile; fileRef = C64C6DEB797431106B83CFE0; };
+		E059FC0599A6919DA3AE9EB5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelModels.swift; sourceTree = "<group>"; };
+		D596D2B7FDA4DAEF366E4203 = {isa = PBXBuildFile; fileRef = E059FC0599A6919DA3AE9EB5; };
+		0C603EB375E740BA2A4E4EF8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelLibrary.swift; sourceTree = "<group>"; };
+		D192984A85EA5629F8764CC2 = {isa = PBXBuildFile; fileRef = 0C603EB375E740BA2A4E4EF8; };
+		1522B94D7761FB86AF21FE19 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelReaderStyle.swift; sourceTree = "<group>"; };
+		9B5C9395CAEF909BE2F4A58A = {isa = PBXBuildFile; fileRef = 1522B94D7761FB86AF21FE19; };
+		29B8A523E790C52057909D4B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelSources.swift; sourceTree = "<group>"; };
+		445C16705CB681BF847F2DB6 = {isa = PBXBuildFile; fileRef = 29B8A523E790C52057909D4B; };
+		64A3125039298C1146CAB173 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelSourceIndex.swift; sourceTree = "<group>"; };
+		01797BBF29BF621630755E76 = {isa = PBXBuildFile; fileRef = 64A3125039298C1146CAB173; };
+		15A3048FF6A2C3470C3AA920 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelTypesetter.swift; sourceTree = "<group>"; };
+		1B4645F7142A9C95C1202C92 = {isa = PBXBuildFile; fileRef = 15A3048FF6A2C3470C3AA920; };
 		E93C178777BE8957415D248C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveGuide.swift; sourceTree = "<group>"; };
 		383B40E28AB98756FA2A6EF6 = {isa = PBXBuildFile; fileRef = E93C178777BE8957415D248C; };
 		BEC1F6F04695DAC437D4B5B1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveRoomsView.swift; sourceTree = "<group>"; };
@@ -521,6 +545,18 @@
 				80B0B97E1D006FAA530EA390,
 				4E3D8F5FCFF6B3F3A4D868CB,
 				50E6DFF74F0023239A433B40,
+				EBF4CFF57632E3A220425620,
+				FA67B300F82AF49050385E78,
+				9A811B279A017000B04C5FBB,
+				5565EBA279DF3BD184ABDAE5,
+				B467FB829B1AD9C5FC84CE44,
+				C64C6DEB797431106B83CFE0,
+				E059FC0599A6919DA3AE9EB5,
+				0C603EB375E740BA2A4E4EF8,
+				1522B94D7761FB86AF21FE19,
+				29B8A523E790C52057909D4B,
+				64A3125039298C1146CAB173,
+				15A3048FF6A2C3470C3AA920,
 			);
 			name = App;
 			path = App;
@@ -933,6 +969,18 @@
 				1FB6ED89EE469833ADEE4DB3,
 				374F60CCDA91802B34ABE201,
 				AEE1BE8AA4A9620FBC40E43B,
+				D0A56AD6CAC89C28379FD62A,
+				04E8E59CA83428565B3EDF8C,
+				1ACEF126A99DB18AAA3BC312,
+				CE78BCA1F145ECFA2DF03E11,
+				03F32AE3346636E88FFEA7E2,
+				90F6690A7F2DC7036FFD499A,
+				D596D2B7FDA4DAEF366E4203,
+				D192984A85EA5629F8764CC2,
+				9B5C9395CAEF909BE2F4A58A,
+				445C16705CB681BF847F2DB6,
+				01797BBF29BF621630755E76,
+				1B4645F7142A9C95C1202C92,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

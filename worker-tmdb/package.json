@@ -1,0 +1,1 @@
+{"description":"HAoMovie's own TMDB Worker: title matching, cached catalog, detail enrichment.","devDependencies":{"@cloudflare/workers-types":"^5.20261127.0","typescript":"^5.9.3","wrangler":"^4.0.0"},"name":"hao-tmdb","private":true,"scripts":{"check":"tsc --noEmit","deploy":"wrangler deploy","dev":"wrangler dev"},"version":"0.1.0"}

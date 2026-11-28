@@ -239,18 +239,26 @@ struct HomeView: View {
                     .frame(maxWidth: heroTitle * 9)
                     .padding(.top, 24)
             }
+            WelcomeRecommendedSources()
+                .frame(maxWidth: heroTitle * 9)
+                .padding(.top, 32)
         }
     }
 
     @ViewBuilder private var welcomeButtons: some View {
-        // There is no default subscription; a subscription address is added in Settings.
-        Button { store.section = .settings } label: {
-            Label(L10n.text("Add Subscription"), systemImage: "plus.circle.fill").lineLimit(1)
+        // There is no default subscription. A cloud drive works without one (Cloud Files), and a
+        // subscription address is added in Settings.
+        RouteLink { CloudDriveView() } label: {
+            Label(L10n.text("Sign In to Cloud Drive"), systemImage: "externaldrive.fill.badge.person.crop").lineLimit(1)
         }
-        .controlButton(prominent: true).tint(Brand.accent).disabled(store.importing)
+        .controlButton(prominent: true).tint(Brand.accent)
         #if os(tvOS)
         .focused($primaryFocused)
         #endif
+        Button { store.section = .settings } label: {
+            Label(L10n.text("Add Subscription"), systemImage: "plus.circle.fill").lineLimit(1)
+        }
+        .controlButton().disabled(store.importing)
     }
 
     private var showsPosterWall: Bool {

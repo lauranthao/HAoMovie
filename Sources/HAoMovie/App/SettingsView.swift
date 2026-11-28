@@ -1171,7 +1171,7 @@ struct PlaybackSettingsView: View {
 
 /// Adding a subscription: the address, recommended sources to tap instead of pasting, and Add in the toolbar.
 /// Closes itself once the import succeeds; a failure stays here under the field.
-private enum RecommendedSubscriptions {
+enum RecommendedSubscriptions {
     struct Item: Sendable { let name: String; let detail: String; let address: String }
     /// Verified reachable with valid subscription JSON on 2026-11-27. Public TVBox lists die often;
     /// re-check an address before shipping it in a new version.
