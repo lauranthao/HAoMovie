@@ -22,7 +22,7 @@ interface Env {
   MATCH_LIMITER: RateLimit;
   DETAILS_LIMITER: RateLimit;
   CATALOG_SEARCH_LIMITER: RateLimit;
-  // Secrets: wrangler secret put OPENAI_API_KEY / GEMINI_API_KEY / TMDB_TOKEN (TMDB's v4 read access token).
+  // Secrets: wrangler secret put OPENAI_API_KEY / GEMINI_API_KEY / TMDB_TOKEN (TMDB v3 API key or v4 read access token — HAo's is the v3 key).
   AI_PROVIDER?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;

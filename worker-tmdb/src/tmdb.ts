@@ -32,6 +32,16 @@ export class TMDB {
   private cache: Cache | null;
   private api: string;
 
+  // TMDB ships two credentials for the same v3 API: a 32-hex API key
+  // (v3 key, sent as ?api_key=) and a JWT read access token (v4, sent
+  // as Authorization: Bearer). HAo's key is the v3 form, so the client
+  // accepts both: a 32-hex token goes out as api_key, anything else
+  // as Bearer. The cache/pending key is the URL without the key, so
+  // the secret never lands in a cache key.
+  private get isV3Key(): boolean {
+    return /^[0-9a-f]{32}$/i.test(this.token);
+  }
+
   constructor(token: string, fetcher?: Fetcher, cache?: Cache | null, api = API) {
     this.token = token;
     this.fetcher = fetcher ?? ((input, init) => fetch(input, init));
@@ -63,8 +73,15 @@ export class TMDB {
     for (let attempt = 0; ; attempt++) {
       this.requests++;
       let response: Response;
+      // v3 key: ?api_key= on the fetch URL only (never in the cache
+      // key above). v4 token: Authorization: Bearer.
+      const fetchUrl = this.isV3Key
+        ? `${url}${url.includes("?") ? "&" : "?"}api_key=${encodeURIComponent(this.token)}`
+        : url;
+      const headers: Record<string, string> = { accept: "application/json" };
+      if (!this.isV3Key) headers.authorization = `Bearer ${this.token}`;
       try {
-        response = await this.fetcher(url, { headers: { authorization: `Bearer ${this.token}`, accept: "application/json" }, signal });
+        response = await this.fetcher(fetchUrl, { headers, signal });
       } catch (error) {
         throw new UpstreamError(`TMDB unreachable: ${(error as Error).message}`);
       }

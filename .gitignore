@@ -1,3 +1,7 @@
 worker-tmdb/node_modules/
 worker-tmdb/.wrangler/
 Packages/QuickJS/.build/
+
+# local Worker secrets (never commit)
+.dev.vars
+worker-tmdb/.dev.vars

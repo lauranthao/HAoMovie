@@ -83,7 +83,7 @@ npm install
 npx wrangler d1 create hao-tmdb
 # Put the returned database_id into wrangler.jsonc (replacing REPLACE_WITH_CREATED_DATABASE_ID).
 npx wrangler d1 execute hao-tmdb --remote --file schema.sql
-npx wrangler secret put TMDB_TOKEN   # TMDB's v4 read access token
+npx wrangler secret put TMDB_TOKEN   # TMDB v3 API key or v4 read access token (HAo's is the v3 key)
 npx wrangler secret put OPENAI_API_KEY
 npx wrangler secret put GEMINI_API_KEY # only needed if AI_PROVIDER=gemini
 npx wrangler deploy
@@ -99,7 +99,7 @@ An existing database gets new columns and tables from `migrations/` (`npx wrangl
 
 | Secret | What it is | Required |
 |---|---|---|
-| `TMDB_TOKEN` | TMDB v4 read access token (Bearer token for api.themoviedb.org/3) | Always |
+| `TMDB_TOKEN` | TMDB v3 API key or v4 read access token (Bearer token for api.themoviedb.org/3; HAo's key is the v3 form) | Always |
 | `OPENAI_API_KEY` | OpenAI API key, for the default provider | When `AI_PROVIDER=openai` (default) |
 | `GEMINI_API_KEY` | Gemini API key | Only when `AI_PROVIDER=gemini` |
 
