@@ -1,9 +1,5 @@
 // Ported from Yingxia (jo32/tvbox-silicon, GPL-3.0) — Sources/TVCore/MangaSources.swift.
-// OMITTED: `install(from:)`, `install(code:origin:)` and `remove(_:)` (original lines ~99-129).
-// They describe the script through `MangaRuntime.shared.inspect(code:)` and reset the source through
-// `MangaRuntime.shared.reset(_:)`, and `remove` also clears `MangaSourceData`; all three need the
-// QuickJS runtime, so they cannot run until the runtime leg lands. Restore them verbatim with
-// MangaRuntime/MangaNetwork. Everything kept here is runtime-independent.
+// Verbatim; no `import TVCore` in the single-target app.
 import Foundation
 
 /// A source listed by a Venera repository (`index.json` of github.com/venera-app/venera-configs or a copy).
@@ -99,6 +95,39 @@ public final class MangaSources: @unchecked Sendable {
     }
 
     // MARK: Sources
+
+    /// Downloads a source script and installs it, replacing an installed source with the same key.
+    @discardableResult
+    public func install(from address: URL) async throws -> MangaInstalledSource {
+        let (data, _) = try await HTTPClient().get(address)
+        return try await install(code: String(decoding: data, as: UTF8.self), origin: address)
+    }
+
+    @discardableResult
+    public func install(code: String, origin: URL?) async throws -> MangaInstalledSource {
+        let info = try await MangaRuntime.shared.inspect(code: code)
+        try FileManager.default.createDirectory(at: Self.folder, withIntermediateDirectories: true)
+        try Data(code.utf8).write(to: Self.folder.appendingPathComponent(info.key + ".js"), options: .atomic)
+        let source = MangaInstalledSource(key: info.key, name: info.name, version: info.version, origin: origin, installed: Date(),
+                                          revision: PluginChecksum.sha256(Data(code.utf8)))
+        lock.withLock {
+            if let index = list.firstIndex(where: { $0.key == source.key }) { list[index] = source } else { list.append(source) }
+            save()
+        }
+        await MangaRuntime.shared.reset(info.key)
+        Diagnostics.shared.record(.info, "manga.install", "source=\(info.key) version=\(info.version)")
+        return source
+    }
+
+    public func remove(_ key: String) async {
+        lock.withLock {
+            list.removeAll { $0.key == key }
+            save()
+        }
+        try? FileManager.default.removeItem(at: Self.folder.appendingPathComponent(key + ".js"))
+        MangaSourceData.shared.remove(key)
+        await MangaRuntime.shared.reset(key)
+    }
 
     public func move(fromOffsets: IndexSet, toOffset: Int) {
         lock.withLock {

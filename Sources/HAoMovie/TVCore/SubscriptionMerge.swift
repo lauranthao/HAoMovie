@@ -136,6 +136,15 @@ public struct SubscriptionEntry: Codable, Hashable, Identifiable, Sendable {
 public enum SubscriptionImport: Sendable {
     case subscription(Subscription)
     case directory([SubscriptionEntry])
+    /// A Venera comic source list (`index.json` of venera-configs or a copy), with how many sources it lists:
+    /// it feeds the Manga section, not Watch Now.
+    case comicSources(Int)
+    /// A Legado book source list (one JSON array of `bookSourceUrl` sources), with the data downloaded:
+    /// it feeds the Novels section.
+    case novelSources(Int, Data)
+    /// A page of Legado book source lists, or a Legado subscription source (订阅源) that opens one: the lists it links
+    /// to, for the viewer to choose from in Book Sources.
+    case novelIndex([NovelSourceOffer])
 }
 
 extension Subscription {
@@ -168,7 +177,12 @@ extension HTTPClient {
         if let channel = TelegramSource.channel(url) { return .subscription(TelegramSource.subscription(channel, origin: url)) }
         let (data, finalURL) = try await get(url, headers: ["User-Agent": Self.subscriptionUserAgent].merging(headers) { $1 },
                                              fresh: fresh, limit: Self.subscriptionLimit)
+        if let count = MangaSources.listedCount(data) { return .comicSources(count) }
+        if let sources = NovelSource.list(from: data) { return .novelSources(sources.count, data) }
+        if let pages = NovelSourceIndex.pages(from: data) { return .novelIndex(try await NovelSourceIndex.offers(pages: pages, http: self)) }
         if let entries = Subscription.directory(data, origin: finalURL) { return .directory(entries) }
+        let offers = NovelSourceIndex.offers(inPage: data, origin: finalURL)
+        if !offers.isEmpty { return .novelIndex(offers) }
         return .subscription(try Subscription.parse(data, origin: finalURL, headers: headers))
     }
 }

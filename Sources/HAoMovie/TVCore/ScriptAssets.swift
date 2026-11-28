@@ -1,11 +1,11 @@
 // Restored from Yingxia (jo32/tvbox-silicon, GPL-3.0) — shared helpers the kept
-// files still use. Adapted for HAo Movie where noted (no TMDB, no JavaScript
-// runtime, no libass/TVMedia); see the notes on each type.
+// files still use. Adapted for HAo Movie where noted (no TMDB, no libass/TVMedia);
+// the JavaScript runtime (QuickJS + ScriptAssets) landed with the runtime leg.
 
 import Foundation
 
 enum ScriptAssets {
-    static let root: URL? = nil  // HAo Movie bundles no script assets.
+    static let root: URL? = Bundle.main.url(forResource: "ScriptAssets", withExtension: nil)
     static let cache: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("com.tvbox.yingxia/Scripts", isDirectory: true)
     static let profiles: URL = cache.appendingPathComponent("Profiles", isDirectory: true)

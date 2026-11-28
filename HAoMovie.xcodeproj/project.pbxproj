@@ -557,7 +557,19 @@
 				29B8A523E790C52057909D4B,
 				64A3125039298C1146CAB173,
 				15A3048FF6A2C3470C3AA920,
-			);
+							4ECDDC17018DFCFE12C1FD01,
+				915F4043983724AE861901F7,
+				A501A2CF4D9C8866397D3EAF,
+				73AD5306EC178AF0F94D22A4,
+				472F8A986B11BE78CBF6773E,
+				89B8A2EDE3E74208692800FC,
+				36AC2A33C95431B1DA7CF549,
+				9BBDE12D8A58F6BB87BB5082,
+				7ACFF234F0BE926293756416,
+				1A356B4593EAB20D05460AF7,
+				D6A11CCA547A71AD13C3FB46,
+				46325DE4FB8F4FCB9829222C,
+);
 			name = App;
 			path = App;
 			sourceTree = "<group>";
@@ -720,7 +732,13 @@
 				70F56EEA80F90D34666254B0,
 				90164AE093113DDF88CE387F,
 				BEA6E23906C84AA77F4729AA,
-			);
+							D0CB336FCC3CD2D8502E464A,
+				B8D025F0622F53D9C74FB83D,
+				BB537367260E9747F408E549,
+				5F8A5E115F5155050813027D,
+				2D479CB7E10EF0C652EEDB72,
+				0DA844D68074B7FB545B4BD4,
+);
 			name = TVCore;
 			path = TVCore;
 			sourceTree = "<group>";
@@ -731,7 +749,8 @@
 				770C5B730A8FBE3C009C5372,
 				59DAA59D477A91E75E0468AF,
 				F0A91D7F2761031F796F562D,
-			);
+							461BD7C4DE38E8EDABDA941D,
+);
 			name = Resources;
 			path = Resources;
 			sourceTree = "<group>";
@@ -742,7 +761,8 @@
 				D1D0524B025E57AFFF263442,
 				F2C4514B1D5318AAF3D34623,
 				887A6F90336FF23D95C3914B,
-			);
+							96F0977B6862DD020A0E28D8,
+);
 			name = HAoMovie;
 			path = Sources/HAoMovie;
 			sourceTree = "<group>";
@@ -981,7 +1001,30 @@
 				445C16705CB681BF847F2DB6,
 				01797BBF29BF621630755E76,
 				1B4645F7142A9C95C1202C92,
-			);
+							C465F097C1F0117A0640A417,
+				BA78EC6067DD29FB8DD4E3B9,
+				FCAD879EEBC08D0D765DAAB8,
+				53A0D301E6B47FDE46477E32,
+				641CBD246C998B72DB035973,
+				9F28DB84E3A956C28ABCD09D,
+				83BF5F55FB45B44FD5BDB482,
+				305881210AEE80065495E88E,
+				03675E8E377D72A6BDF2E1F5,
+				2A0E7DD7CB4CF1CB52F0746D,
+				2F7858EB7F1CDD6B03A784C8,
+				BB49F510886AF014ECE89677,
+				54E249B1B4ECEEE414CCB1B1,
+				8B46AF961530B15C308DDA75,
+				E75D2E244D40851EAB2BA160,
+				3C8F94D279418296D98A620E,
+				00C0D7BE234C52C41271D599,
+				E8FEE49CA204BE9BA43BBF2F,
+				76DEDBE29F578F8F63019024,
+				F2B6F42CD76F9CA009C13782,
+				6C516C1DB20970848474AA5F,
+				983655D9F84ED16B79829415,
+				D970E75F099BA9E55A24B00F,
+);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		7B0000060000000000000006 = {
@@ -997,7 +1040,8 @@
 			files = (
 				A6070B9CF28E71610AA267AE,
 				60EC8D72AACA7D0B13237AE6,
-			);
+							76D69C89EC2C76E7C921EADE,
+);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		7B0000080000000000000008 = {
@@ -1173,6 +1217,16 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					_GNU_SOURCE,
+					QUICKJS_NG_BUILD,
+					NDEBUG,
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Sources/HAoMovie/Vendor/QuickJS",
+				);
 				INFOPLIST_FILE = "Sources/HAoMovie/Resources/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1186,6 +1240,10 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.haostudio.movie;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 6.0;
+				SWIFT_INCLUDE_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Sources/HAoMovie/Vendor/QuickJS",
+				);
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -1196,6 +1254,16 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					_GNU_SOURCE,
+					QUICKJS_NG_BUILD,
+					NDEBUG,
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Sources/HAoMovie/Vendor/QuickJS",
+				);
 				INFOPLIST_FILE = "Sources/HAoMovie/Resources/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1209,6 +1277,10 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.haostudio.movie;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 6.0;
+				SWIFT_INCLUDE_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Sources/HAoMovie/Vendor/QuickJS",
+				);
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -1230,6 +1302,78 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
+		};
+		4ECDDC17018DFCFE12C1FD01 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaStore.swift; sourceTree = "<group>"; };
+		915F4043983724AE861901F7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaView.swift; sourceTree = "<group>"; };
+		A501A2CF4D9C8866397D3EAF = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaDetailView.swift; sourceTree = "<group>"; };
+		73AD5306EC178AF0F94D22A4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaReaderView.swift; sourceTree = "<group>"; };
+		472F8A986B11BE78CBF6773E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaSourcesView.swift; sourceTree = "<group>"; };
+		89B8A2EDE3E74208692800FC = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelStore.swift; sourceTree = "<group>"; };
+		36AC2A33C95431B1DA7CF549 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelView.swift; sourceTree = "<group>"; };
+		9BBDE12D8A58F6BB87BB5082 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelDetailView.swift; sourceTree = "<group>"; };
+		7ACFF234F0BE926293756416 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelChapterList.swift; sourceTree = "<group>"; };
+		1A356B4593EAB20D05460AF7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelReaderView.swift; sourceTree = "<group>"; };
+		D6A11CCA547A71AD13C3FB46 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelSourcesView.swift; sourceTree = "<group>"; };
+		46325DE4FB8F4FCB9829222C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelCurlPager.swift; sourceTree = "<group>"; };
+		D0CB336FCC3CD2D8502E464A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptRuntime.swift; sourceTree = "<group>"; };
+		B8D025F0622F53D9C74FB83D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaRuntime.swift; sourceTree = "<group>"; };
+		BB537367260E9747F408E549 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelRuntime.swift; sourceTree = "<group>"; };
+		5F8A5E115F5155050813027D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaHost.swift; sourceTree = "<group>"; };
+		2D479CB7E10EF0C652EEDB72 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaNetwork.swift; sourceTree = "<group>"; };
+		0DA844D68074B7FB545B4BD4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XimalayaAudio.swift; sourceTree = "<group>"; };
+		83C1E6331568217FCBF54FC2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c; path = quickjs.c; sourceTree = "<group>"; };
+		951DD61B9F3552144E6EFAF8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c; path = libregexp.c; sourceTree = "<group>"; };
+		68836113A14EA4BECA0A2D81 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c; path = libunicode.c; sourceTree = "<group>"; };
+		F8F83354223B66A931A29C3A = {isa = PBXFileReference; lastKnownFileType = sourcecode.c; path = dtoa.c; sourceTree = "<group>"; };
+		0238F4DD8AA12C60EFE8F666 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c; path = TVScript.c; sourceTree = "<group>"; };
+		074AB3AE81D26BD60EC993A0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.module-map; path = module.modulemap; sourceTree = "<group>"; };
+		461BD7C4DE38E8EDABDA941D = {isa = PBXFileReference; lastKnownFileType = folder; path = ScriptAssets; sourceTree = "<group>"; };
+		C465F097C1F0117A0640A417 = {isa = PBXBuildFile; fileRef = 4ECDDC17018DFCFE12C1FD01; };
+		BA78EC6067DD29FB8DD4E3B9 = {isa = PBXBuildFile; fileRef = 915F4043983724AE861901F7; };
+		FCAD879EEBC08D0D765DAAB8 = {isa = PBXBuildFile; fileRef = A501A2CF4D9C8866397D3EAF; };
+		53A0D301E6B47FDE46477E32 = {isa = PBXBuildFile; fileRef = 73AD5306EC178AF0F94D22A4; };
+		641CBD246C998B72DB035973 = {isa = PBXBuildFile; fileRef = 472F8A986B11BE78CBF6773E; };
+		9F28DB84E3A956C28ABCD09D = {isa = PBXBuildFile; fileRef = 89B8A2EDE3E74208692800FC; };
+		83BF5F55FB45B44FD5BDB482 = {isa = PBXBuildFile; fileRef = 36AC2A33C95431B1DA7CF549; };
+		305881210AEE80065495E88E = {isa = PBXBuildFile; fileRef = 9BBDE12D8A58F6BB87BB5082; };
+		03675E8E377D72A6BDF2E1F5 = {isa = PBXBuildFile; fileRef = 7ACFF234F0BE926293756416; };
+		2A0E7DD7CB4CF1CB52F0746D = {isa = PBXBuildFile; fileRef = 1A356B4593EAB20D05460AF7; };
+		2F7858EB7F1CDD6B03A784C8 = {isa = PBXBuildFile; fileRef = D6A11CCA547A71AD13C3FB46; };
+		BB49F510886AF014ECE89677 = {isa = PBXBuildFile; fileRef = 46325DE4FB8F4FCB9829222C; };
+		54E249B1B4ECEEE414CCB1B1 = {isa = PBXBuildFile; fileRef = D0CB336FCC3CD2D8502E464A; };
+		8B46AF961530B15C308DDA75 = {isa = PBXBuildFile; fileRef = B8D025F0622F53D9C74FB83D; };
+		E75D2E244D40851EAB2BA160 = {isa = PBXBuildFile; fileRef = BB537367260E9747F408E549; };
+		3C8F94D279418296D98A620E = {isa = PBXBuildFile; fileRef = 5F8A5E115F5155050813027D; };
+		00C0D7BE234C52C41271D599 = {isa = PBXBuildFile; fileRef = 2D479CB7E10EF0C652EEDB72; };
+		E8FEE49CA204BE9BA43BBF2F = {isa = PBXBuildFile; fileRef = 0DA844D68074B7FB545B4BD4; };
+		76DEDBE29F578F8F63019024 = {isa = PBXBuildFile; fileRef = 83C1E6331568217FCBF54FC2; };
+		F2B6F42CD76F9CA009C13782 = {isa = PBXBuildFile; fileRef = 951DD61B9F3552144E6EFAF8; };
+		6C516C1DB20970848474AA5F = {isa = PBXBuildFile; fileRef = 68836113A14EA4BECA0A2D81; };
+		983655D9F84ED16B79829415 = {isa = PBXBuildFile; fileRef = F8F83354223B66A931A29C3A; };
+		D970E75F099BA9E55A24B00F = {isa = PBXBuildFile; fileRef = 0238F4DD8AA12C60EFE8F666; };
+		76D69C89EC2C76E7C921EADE = {isa = PBXBuildFile; fileRef = 461BD7C4DE38E8EDABDA941D; };
+		96F0977B6862DD020A0E28D8 = {
+			isa = PBXGroup;
+			children = (
+				6174D17E21D7DCF2E96EC915,
+			);
+			name = Vendor;
+			path = Vendor;
+			sourceTree = "<group>";
+		};
+		6174D17E21D7DCF2E96EC915 = {
+			isa = PBXGroup;
+			children = (
+				83C1E6331568217FCBF54FC2,
+				951DD61B9F3552144E6EFAF8,
+				68836113A14EA4BECA0A2D81,
+				F8F83354223B66A931A29C3A,
+				0238F4DD8AA12C60EFE8F666,
+				074AB3AE81D26BD60EC993A0,
+			);
+			name = QuickJS;
+			path = QuickJS;
+			sourceTree = "<group>";
 		};
 	};
 	rootObject = 7B0000090000000000000009;

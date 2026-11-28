@@ -1,8 +1,5 @@
-// Ported from Yingxia (jo32/tvbox-silicon, GPL-3.0) — Sources/TVCore/NovelLibrary.swift, lines 1-146.
-// OMITTED: the `NovelBooks` actor (original lines 147-319). It searches, explores, reads details,
-// tables of contents and chapter text through `NovelRuntime` (QuickJS + Legado engine.js) and
-// `NovelSources`, so it cannot run until the QuickJS runtime leg lands; restore it verbatim with
-// NovelRuntime. Everything kept here is runtime-independent.
+// Ported from Yingxia (jo32/tvbox-silicon, GPL-3.0) — Sources/TVCore/NovelLibrary.swift.
+// The `NovelBooks` actor (original lines 147-319) was restored with the QuickJS runtime leg (build 8).
 import Foundation
 
 /// Where the Novels section keeps its files, and the viewer's bookshelf.
@@ -145,5 +142,180 @@ public struct NovelSearchHit: Sendable, Identifiable, Hashable {
         name = NovelBook.normalized(books[0].name)
         author = NovelBook.normalized(books[0].author)
         id = name + "|" + author
+    }
+}
+
+/// Books from their sources, through NovelRuntime, with tables of contents and chapters kept on disk.
+public actor NovelBooks {
+    public static let shared = NovelBooks()
+    private var reading: [String: Task<NovelContent, Error>] = [:]
+
+    static func source(_ key: String) async throws -> NovelSource {
+        await NovelSources.shared.loaded()
+        guard let source = NovelSources.shared.source(key) else {
+            throw TVError.unsupported(L10n.text("This book's source is no longer in your book source lists."))
+        }
+        return source
+    }
+
+    // MARK: Search
+
+    /// Searches `sources` a few at a time; each source's answer arrives as it comes. Stops when the stream is dropped.
+    public nonisolated static func search(_ keyword: String, in sources: [NovelSource], concurrency: Int = 16)
+        -> AsyncStream<(source: NovelSource, result: Result<[NovelBook], Error>)> {
+        AsyncStream { continuation in
+            let task = Task {
+                await withTaskGroup(of: (NovelSource, Result<[NovelBook], Error>).self) { group in
+                    var queue = sources[...]
+                    func next() -> Bool {
+                        guard let source = queue.popFirst() else { return false }
+                        group.addTask {
+                            do { return (source, .success(try await NovelRuntime.shared.search(source, keyword: keyword, page: 1))) }
+                            catch { return (source, .failure(error)) }
+                        }
+                        return true
+                    }
+                    for _ in 0..<max(1, concurrency) where next() {}
+                    while let (source, result) = await group.next() {
+                        if Task.isCancelled { group.cancelAll(); break }
+                        continuation.yield((source: source, result: result))
+                        _ = next()
+                    }
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// Adds `found` to `hits`, joining books with the same title and author. Books whose name doesn't contain the
+    /// keyword (some sources answer every search with their front page) go after the ones that do.
+    public nonisolated static func merge(_ found: [NovelBook], into hits: inout [NovelSearchHit], keyword: String) {
+        // This runs on the main thread after every source's answer. Each title is normalized once, not again for every
+        // comparison: with a few thousand results from a few hundred sources that took seconds per answer, and the
+        // watchdog ended the app (1b60dff9c5c8).
+        let wanted = NovelBook.normalized(keyword)
+        var position = Dictionary(hits.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for book in found where !book.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !book.url.isEmpty {
+            let hit = NovelSearchHit(books: [book])
+            if let index = position[hit.id] {
+                if !hits[index].books.contains(where: { $0.sourceKey == book.sourceKey }) { hits[index].books.append(book) }
+            } else {
+                position[hit.id] = hits.count
+                hits.append(hit)
+            }
+        }
+        func rank(_ hit: NovelSearchHit) -> Int {
+            if hit.name == wanted { return 0 }
+            if hit.name.hasPrefix(wanted) { return 1 }
+            if hit.name.contains(wanted) || hit.author == wanted { return 2 }
+            return 3
+        }
+        // Stable: within a rank, more sources first, then the order they arrived in.
+        hits = hits.enumerated().map { (rank: rank($1), offset: $0, hit: $1) }.sorted { a, b in
+            if a.rank != b.rank { return a.rank < b.rank }
+            if a.hit.books.count != b.hit.books.count { return a.hit.books.count > b.hit.books.count }
+            return a.offset < b.offset
+        }.map(\.hit)
+    }
+
+    // MARK: Explore
+
+    public func exploreKinds(_ sourceKey: String) async throws -> [NovelExploreKind] {
+        try await NovelRuntime.shared.exploreKinds(Self.source(sourceKey))
+    }
+    public func explore(_ sourceKey: String, url: String, page: Int) async throws -> [NovelBook] {
+        try await NovelRuntime.shared.explore(Self.source(sourceKey), url: url, page: page)
+    }
+
+    // MARK: Books
+
+    /// The book's page: intro, cover, the table of contents' address.
+    public func details(_ book: NovelBook) async throws -> NovelBook {
+        let source = try await Self.source(book.sourceKey)
+        var filled = try await NovelRuntime.shared.details(source, book: book)
+        // Keep what the search found when the page leaves a field out.
+        if filled.name.isEmpty { filled.name = book.name }
+        if filled.author.isEmpty { filled.author = book.author }
+        if filled.cover.isEmpty { filled.cover = book.cover }
+        if filled.intro.isEmpty { filled.intro = book.intro }
+        if filled.kind.isEmpty { filled.kind = book.kind }
+        if filled.lastChapter.isEmpty { filled.lastChapter = book.lastChapter }
+        if filled.url.isEmpty { filled.url = book.url }
+        filled.sourceKey = book.sourceKey
+        return filled
+    }
+
+    private static func folder(_ book: NovelBook) -> URL {
+        NovelLibrary.cache.appendingPathComponent(PluginChecksum.sha256(Data(book.id.utf8)), isDirectory: true)
+    }
+
+    /// The table of contents: the saved copy unless `refresh`, else from the source (and saved).
+    public func chapters(_ book: NovelBook, refresh: Bool = false) async throws -> [NovelChapter] {
+        let file = Self.folder(book).appendingPathComponent("toc.json")
+        if !refresh, let data = try? Data(contentsOf: file), let saved = try? JSONDecoder().decode([NovelChapter].self, from: data), !saved.isEmpty {
+            return saved
+        }
+        let source = try await Self.source(book.sourceKey)
+        do {
+            var chapters = try await NovelRuntime.shared.chapters(source, book: book)
+            for index in chapters.indices { chapters[index].index = index }
+            guard !chapters.isEmpty else { throw TVError.unsupported(L10n.text("The source listed no chapters for this book.")) }
+            try? FileManager.default.createDirectory(at: Self.folder(book), withIntermediateDirectories: true)
+            if let data = try? JSONEncoder().encode(chapters) { try? data.write(to: file, options: .atomic) }
+            return chapters
+        } catch {
+            // Offline: the saved copy is better than nothing.
+            if let data = try? Data(contentsOf: file), let saved = try? JSONDecoder().decode([NovelChapter].self, from: data), !saved.isEmpty { return saved }
+            throw error
+        }
+    }
+
+    private static func contentFile(_ book: NovelBook, _ chapter: NovelChapter) -> URL {
+        folder(book).appendingPathComponent("\(chapter.index)-" + PluginChecksum.sha256(Data(chapter.url.utf8)).prefix(12) + ".json")
+    }
+
+    public func hasContent(_ book: NovelBook, _ chapter: NovelChapter) -> Bool {
+        FileManager.default.fileExists(atPath: Self.contentFile(book, chapter).path)
+    }
+
+    /// A chapter's text, saved once read. `chapters` is the table of contents it belongs to (for the next chapter's
+    /// address, which some sources' paging needs).
+    public func content(_ book: NovelBook, chapters: [NovelChapter], index: Int, refresh: Bool = false) async throws -> NovelContent {
+        guard chapters.indices.contains(index) else { throw TVError.unsupported(L10n.text("This chapter is not in the table of contents.")) }
+        let chapter = chapters[index]
+        let file = Self.contentFile(book, chapter)
+        if !refresh, let data = try? Data(contentsOf: file), let saved = try? JSONDecoder().decode(NovelContent.self, from: data) { return saved }
+        let key = file.path
+        if let running = reading[key] { return try await running.value }
+        let next = chapters[(index + 1)...].first { !$0.isVolume }
+        let task = Task { () throws -> NovelContent in
+            let source = try await Self.source(book.sourceKey)
+            var content = try await NovelRuntime.shared.content(source, book: book, chapter: chapter, next: next)
+            if content.title.isEmpty { content.title = chapter.title }
+            guard !content.paragraphs.isEmpty else { throw TVError.unsupported(L10n.text("The source returned an empty chapter.")) }
+            try? FileManager.default.createDirectory(at: Self.folder(book), withIntermediateDirectories: true)
+            if let data = try? JSONEncoder().encode(content) { try? data.write(to: file, options: .atomic) }
+            return content
+        }
+        reading[key] = task
+        defer { reading[key] = nil }
+        return try await task.value
+    }
+
+    /// Reads the next few chapters ahead, quietly, so turning to them is instant.
+    public func prefetch(_ book: NovelBook, chapters: [NovelChapter], after index: Int, count: Int = 2) async {
+        var fetched = 0
+        for next in (index + 1)..<min(chapters.count, index + 1 + count * 2) where fetched < count {
+            guard !chapters[next].isVolume else { continue }
+            fetched += 1
+            if hasContent(book, chapters[next]) { continue }
+            _ = try? await content(book, chapters: chapters, index: next)
+        }
+    }
+
+    /// Forgets a book's saved table of contents and chapters.
+    public func clear(_ book: NovelBook) {
+        try? FileManager.default.removeItem(at: Self.folder(book))
     }
 }

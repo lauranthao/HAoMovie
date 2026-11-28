@@ -121,8 +121,14 @@ import SwiftUI
     var extrasUnlocked: Bool {
         currentProfileUnlocksExtras || otherProfileUnlocksExtras
     }
-    /// Sections kept out of the tab bar and sidebar until then. Music, manga and novels are not in this build.
-    var hiddenSections: [AppSection] { [] }
+    /// Sections kept out of the tab bar and sidebar until then. Manga stays out until a comic source list is added;
+    /// novels until a book source list is added. (Music is not in this build.)
+    var hiddenSections: [AppSection] {
+        var hidden: [AppSection] = []
+        if MangaStore.shared.repositories.isEmpty { hidden.append(.manga) }
+        if NovelStore.shared.lists.isEmpty { hidden.append(.novels) }
+        return hidden
+    }
     /// The open profile's defaults: the main defaults for the main profile.
     private var defaults: UserDefaults
     /// The main defaults, which QA's switches are read from.
@@ -343,6 +349,8 @@ import SwiftUI
         importing = true; importError = nil; notice = nil
         defer { importing = false }
         var typed = (address ?? subscriptionAddress).trimmingCharacters(in: .whitespacesAndNewlines)
+        // Legado's one-tap import links (legado://import/bookSource?src=…) carry the list's address.
+        if let link = URL(string: typed), let inner = NovelSources.importAddress(link) { typed = inner.absoluteString }
         do {
             let url = try WebAddress.resolve(typed: typed)
             switch try await http.subscriptionImport(url, fresh: true) {
@@ -360,6 +368,19 @@ import SwiftUI
                 let added = entries.filter { entry in !subscriptions.contains { $0.address == entry.address } }
                 subscriptions += added
                 notice = L10n.text("This address lists %lld subscriptions. They were added switched off; turn on the ones you want.", added.count)
+            case .comicSources(let count):
+                // Comic source lists feed Manga (and show it); they are listed under Subscriptions too.
+                MangaStore.shared.addRepository(url)
+                notice = L10n.text("Added a Venera comic source list (%lld sources). Choose the ones to install in Comic Sources.", count)
+            case .novelSources(let count, let data):
+                // Book source lists feed Novels (and show it); they are listed under Subscriptions too.
+                let title = (address == nil ? subscriptionName : (name ?? "")).trimmingCharacters(in: .whitespacesAndNewlines)
+                try NovelStore.shared.addList(url, data: data, name: title)
+                notice = L10n.text("Added a Legado book source list (%lld sources). Search and read in Novels.", count)
+            case .novelIndex(let offers):
+                // A page of lists (or a Legado subscription source that opens one): Book Sources offers them one by one.
+                NovelStore.shared.offer(offers)
+                notice = L10n.text("This page lists %lld Legado book source lists. Choose the ones to add in Settings › Novels › Book Sources.", offers.count)
             }
             if address == nil { subscriptionAddress = ""; subscriptionName = "" }
             saveSubscriptionList()
@@ -512,6 +533,12 @@ import SwiftUI
                 guard let index = subscriptions.firstIndex(where: { $0.address == entry.address }) else { continue }
                 let known = Set(subscriptions.map(\.address))
                 subscriptions.replaceSubrange(index...index, with: listed.filter { !known.contains($0.address) })
+            case .success(.comicSources):
+                subscriptionErrors[entry.address] = L10n.text("This address is now a comic source list. Add it again to use it for Manga.")
+            case .success(.novelSources):
+                subscriptionErrors[entry.address] = L10n.text("This address is now a book source list. Add it again to use it for Novels.")
+            case .success(.novelIndex):
+                subscriptionErrors[entry.address] = L10n.text("This address is now a page of book source lists. Add it again to choose from them.")
             case .failure(let error):
                 Diagnostics.shared.failure("subscription", "refresh host=\(URL(string: entry.address)?.host() ?? "-")", error)
                 subscriptionErrors[entry.address] = error.localizedDescription
