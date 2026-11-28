@@ -27,6 +27,8 @@
 		94C11D4514E14B8716D68E9E = {isa = PBXBuildFile; fileRef = E8075CE547652D2FBAE18288; };
 		990D36CDBD73FAEA65CFFB9F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuView.swift; sourceTree = "<group>"; };
 		8166166261FFDC21448E87C1 = {isa = PBXBuildFile; fileRef = 990D36CDBD73FAEA65CFFB9F; };
+		E330CCB17B3F6F8B137DDDA5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverDetailView.swift; sourceTree = "<group>"; };
+		2A76D045CC89778FB6167222 = {isa = PBXBuildFile; fileRef = E330CCB17B3F6F8B137DDDA5; };
 		FBDD7AFEB23BE19960319361 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverShared.swift; sourceTree = "<group>"; };
 		F19B173DDE6F6675A29E0D8D = {isa = PBXBuildFile; fileRef = FBDD7AFEB23BE19960319361; };
 		2371B9AA81DF652BEA00D6FA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
@@ -495,6 +497,7 @@
 				A034B457A8C800CA5A6A6B92,
 				E8075CE547652D2FBAE18288,
 				990D36CDBD73FAEA65CFFB9F,
+				E330CCB17B3F6F8B137DDDA5,
 				FBDD7AFEB23BE19960319361,
 				2371B9AA81DF652BEA00D6FA,
 				EF225EB5F78794B4A0B66D6D,
@@ -784,6 +787,7 @@
 				513EABECC0A55883519C7274,
 				94C11D4514E14B8716D68E9E,
 				8166166261FFDC21448E87C1,
+				2A76D045CC89778FB6167222,
 				F19B173DDE6F6675A29E0D8D,
 				98C153DF3C8C0D60CBB21A08,
 				49463F7BDBF4211A56236CE8,

@@ -19,9 +19,9 @@ enum DoubanCatalog {
 
         var title: String {
             switch self {
-            case .movies: L10n.text("Hot Movies")
-            case .television: L10n.text("Hot TV Shows")
-            case .variety: L10n.text("Hot Variety Shows")
+            case .movies: L10n.text("Douban Hot Movies")
+            case .television: L10n.text("Douban Hot Series")
+            case .variety: L10n.text("Douban Hot Variety Shows")
             case .showing: L10n.text("Now Showing")
             case .top250: L10n.text("Top 250")
             }
